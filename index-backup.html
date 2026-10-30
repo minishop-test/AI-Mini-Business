@@ -1,0 +1,753 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>AI Mini Business - Kinh doanh thông minh cùng AI</title>
+
+  <meta name="description" content="Khám phá sản phẩm số, bộ Prompt AI và giải pháp AI hữu ích cho người mới kinh doanh.">
+
+  <meta name="theme-color" content="#101a35">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f6f8fc;
+      color: #172033;
+      line-height: 1.6;
+    }
+
+    a {
+      text-decoration: none;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 1100px;
+      margin: auto;
+    }
+
+    /* HEADER */
+
+    header {
+      background: #101a35;
+      padding: 17px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .brand {
+      color: #60a5fa;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    nav {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    nav a {
+      color: white;
+      font-size: 14px;
+    }
+
+    nav a:hover {
+      color: #60a5fa;
+    }
+
+    /* HERO */
+
+    .hero {
+      background: linear-gradient(135deg, #101a35, #1d4ed8);
+      color: white;
+      padding: 85px 20px;
+      text-align: center;
+    }
+
+    .hero-label {
+      display: inline-block;
+      background: #ffffff20;
+      padding: 7px 16px;
+      border-radius: 30px;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-size: 42px;
+      line-height: 1.25;
+      max-width: 750px;
+      margin: auto auto 18px;
+    }
+
+    .hero p {
+      max-width: 650px;
+      margin: auto;
+      color: #dbeafe;
+      font-size: 17px;
+    }
+
+    .hero-button {
+      display: inline-block;
+      margin-top: 28px;
+      padding: 14px 27px;
+      background: #60a5fa;
+      color: #101a35;
+      border-radius: 9px;
+      font-weight: bold;
+    }
+
+    .hero-button:hover {
+      background: white;
+    }
+
+    /* GENERAL SECTION */
+
+    .section {
+      padding: 65px 0;
+    }
+
+    .section-heading {
+      text-align: center;
+      margin-bottom: 35px;
+    }
+
+    .section-heading h2 {
+      font-size: 29px;
+      margin-bottom: 10px;
+    }
+
+    .section-heading p {
+      color: #64748b;
+    }
+
+    /* PRODUCT */
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 22px;
+    }
+
+    .product-card {
+      background: white;
+      border-radius: 17px;
+      overflow: hidden;
+      box-shadow: 0 5px 22px #0000000a;
+      border: 1px solid #e8edf5;
+      transition: 0.2s;
+    }
+
+    .product-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .product-cover {
+      background: linear-gradient(135deg, #172554, #3b82f6);
+      color: white;
+      text-align: center;
+      padding: 35px 15px;
+    }
+
+    .product-cover .icon {
+      font-size: 45px;
+      margin-bottom: 10px;
+    }
+
+    .product-cover h3 {
+      font-size: 23px;
+    }
+
+    .product-cover p {
+      color: #dbeafe;
+      font-size: 13px;
+    }
+
+    .product-info {
+      padding: 23px;
+    }
+
+    .product-info h3 {
+      color: #1e40af;
+      margin-bottom: 10px;
+    }
+
+    .product-info p {
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .price {
+      margin-top: 17px;
+      color: #1d4ed8;
+      font-size: 27px;
+      font-weight: bold;
+    }
+
+    .price-note {
+      color: #94a3b8;
+      font-size: 12px;
+    }
+
+    .buy-button {
+      display: block;
+      background: #2563eb;
+      color: white;
+      padding: 13px;
+      border-radius: 9px;
+      text-align: center;
+      font-weight: bold;
+      margin-top: 18px;
+    }
+
+    .buy-button:hover {
+      background: #1d4ed8;
+    }
+
+    .coming-soon {
+      background: #f1f5f9;
+      color: #64748b;
+      padding: 9px;
+      border-radius: 7px;
+      text-align: center;
+      margin-top: 15px;
+      font-size: 13px;
+    }
+
+    /* BENEFITS */
+
+    .benefits {
+      background: #eaf1ff;
+    }
+
+    .benefit-grid,
+    .service-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+    }
+
+    .benefit-card,
+    .service-card {
+      background: white;
+      padding: 25px;
+      border-radius: 14px;
+      text-align: center;
+    }
+
+    .benefit-card .icon,
+    .service-card .icon {
+      font-size: 35px;
+      margin-bottom: 12px;
+    }
+
+    .benefit-card h3,
+    .service-card h3 {
+      margin-bottom: 9px;
+      color: #1d4ed8;
+    }
+
+    .benefit-card p,
+    .service-card p {
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    /* HOW TO BUY */
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 18px;
+    }
+
+    .step {
+      background: white;
+      border: 1px solid #e8edf5;
+      border-radius: 13px;
+      padding: 23px;
+    }
+
+    .step-number {
+      width: 35px;
+      height: 35px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      margin-bottom: 13px;
+    }
+
+    .step p {
+      color: #64748b;
+      font-size: 14px;
+      margin-top: 7px;
+    }
+
+    /* FAQ */
+
+    .faq {
+      background: #eaf1ff;
+    }
+
+    .faq-item {
+      background: white;
+      padding: 19px;
+      margin-bottom: 12px;
+      border-radius: 10px;
+    }
+
+    .faq-item h3 {
+      font-size: 16px;
+      color: #1d4ed8;
+      margin-bottom: 7px;
+    }
+
+    .faq-item p {
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    /* CONTACT */
+
+    .contact {
+      background: white;
+      padding: 32px;
+      border-radius: 15px;
+      text-align: center;
+      border: 1px solid #e8edf5;
+    }
+
+    .contact p {
+      color: #64748b;
+      margin-top: 8px;
+    }
+
+    /* FOOTER */
+
+    footer {
+      background: #101a35;
+      color: #cbd5e1;
+      text-align: center;
+      padding: 27px 15px;
+      font-size: 13px;
+    }
+
+    footer .brand {
+      margin-bottom: 8px;
+    }
+
+    /* MOBILE */
+
+    @media (max-width: 600px) {
+
+      .header-content {
+        flex-direction: column;
+      }
+
+      nav {
+        justify-content: center;
+        gap: 13px;
+      }
+
+      nav a {
+        font-size: 13px;
+      }
+
+      .hero {
+        padding: 65px 15px;
+      }
+
+      .hero h1 {
+        font-size: 30px;
+      }
+
+      .hero p {
+        font-size: 15px;
+      }
+
+      .section {
+        padding: 48px 0;
+      }
+
+      .section-heading h2 {
+        font-size: 25px;
+      }
+
+      .contact {
+        padding: 23px 15px;
+      }
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <!-- HEADER -->
+
+  <header>
+    <div class="container header-content">
+
+      <div class="brand">AI Mini Business</div>
+
+      <nav>
+        <a href="#home">Trang chủ</a>
+        <a href="#products">Sản phẩm</a>
+        <a href="#benefits">Lợi ích</a>
+        <a href="#services">Dịch vụ</a>
+        <a href="#contact">Liên hệ</a>
+      </nav>
+
+    </div>
+  </header>
+
+
+  <!-- HERO -->
+
+  <section class="hero" id="home">
+
+    <div class="container">
+
+      <div class="hero-label">
+        Giải pháp số dành cho người mới kinh doanh
+      </div>
+
+      <h1>Kinh doanh thông minh hơn cùng AI</h1>
+
+      <p>
+        Khám phá các sản phẩm số và giải pháp AI
+        giúp bạn tiết kiệm thời gian, phát triển ý tưởng
+        và làm việc hiệu quả hơn.
+      </p>
+
+      <a href="#products" class="hero-button">
+        Khám phá sản phẩm →
+      </a>
+
+    </div>
+
+  </section>
+
+
+  <main class="container">
+
+
+    <!-- PRODUCTS -->
+
+    <section class="section" id="products">
+
+      <div class="section-heading">
+        <h2>Sản phẩm nổi bật</h2>
+        <p>Công cụ hữu ích giúp bạn bắt đầu kinh doanh dễ dàng hơn.</p>
+      </div>
+
+      <div class="product-grid">
+
+        <div class="product-card">
+
+          <div class="product-cover">
+            <div class="icon">📘</div>
+            <h3>50 Prompt AI</h3>
+            <p>AI Mini Business</p>
+          </div>
+
+          <div class="product-info">
+
+            <h3>50 Prompt AI cho người mới kinh doanh</h3>
+
+            <p>
+              Bộ 50 câu lệnh AI giúp bạn lên ý tưởng,
+              viết nội dung, tổ chức công việc và
+              tiết kiệm thời gian.
+            </p>
+
+            <div class="price">29.000 VNĐ</div>
+
+            <div class="price-note">
+              Sản phẩm kỹ thuật số - File PDF
+            </div>
+
+            <a
+              href="https://forms.gle/sqPEfqQTzrCajfmq9"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="buy-button"
+            >
+              MUA NGAY →
+            </a>
+
+          </div>
+
+        </div>
+
+
+        <div class="product-card">
+
+          <div class="product-cover">
+            <div class="icon">📝</div>
+            <h3>Bộ nội dung AI</h3>
+            <p>Content Creator</p>
+          </div>
+
+          <div class="product-info">
+
+            <h3>Bộ nội dung sáng tạo</h3>
+
+            <p>
+              Mẫu caption, ý tưởng bài viết và
+              kịch bản video hỗ trợ sáng tạo nội dung.
+            </p>
+
+            <div class="coming-soon">
+              Sắp ra mắt
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="product-card">
+
+          <div class="product-cover">
+            <div class="icon">📅</div>
+            <h3>Planner AI</h3>
+            <p>Work Smarter</p>
+          </div>
+
+          <div class="product-info">
+
+            <h3>Bộ kế hoạch công việc</h3>
+
+            <p>
+              Mẫu kế hoạch, checklist và công cụ
+              giúp bạn tổ chức công việc khoa học hơn.
+            </p>
+
+            <div class="coming-soon">
+              Sắp ra mắt
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- BENEFITS -->
+
+    <section class="section benefits" id="benefits">
+
+      <div class="section-heading">
+        <h2>Tại sao chọn AI Mini Business?</h2>
+        <p>Giải pháp đơn giản, thiết thực và dễ tiếp cận.</p>
+      </div>
+
+      <div class="benefit-grid">
+
+        <div class="benefit-card">
+          <div class="icon">⚡</div>
+          <h3>Tiết kiệm thời gian</h3>
+          <p>Hỗ trợ hoàn thành công việc nhanh chóng hơn.</p>
+        </div>
+
+        <div class="benefit-card">
+          <div class="icon">💡</div>
+          <h3>Dễ sử dụng</h3>
+          <p>Phù hợp với người mới bắt đầu tìm hiểu AI.</p>
+        </div>
+
+        <div class="benefit-card">
+          <div class="icon">🎯</div>
+          <h3>Thực tế</h3>
+          <p>Các gợi ý tập trung vào công việc và kinh doanh.</p>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- SERVICES -->
+
+    <section class="section" id="services">
+
+      <div class="section-heading">
+        <h2>Dịch vụ AI</h2>
+        <p>Những giải pháp hỗ trợ sáng tạo và phát triển công việc.</p>
+      </div>
+
+      <div class="service-grid">
+
+        <div class="service-card">
+          <div class="icon">🤖</div>
+          <h3>Viết nội dung</h3>
+          <p>Hỗ trợ tạo bài viết, caption và ý tưởng bằng AI.</p>
+        </div>
+
+        <div class="service-card">
+          <div class="icon">🎬</div>
+          <h3>Kịch bản video</h3>
+          <p>Hỗ trợ xây dựng nội dung cho Shorts và Reels.</p>
+        </div>
+
+        <div class="service-card">
+          <div class="icon">🎨</div>
+          <h3>Sáng tạo ý tưởng</h3>
+          <p>Hỗ trợ phát triển ý tưởng cho công việc và kinh doanh.</p>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- HOW TO BUY -->
+
+    <section class="section" id="how-to-buy">
+
+      <div class="section-heading">
+        <h2>Hướng dẫn mua hàng</h2>
+        <p>Chỉ với 4 bước đơn giản để nhận sản phẩm.</p>
+      </div>
+
+      <div class="steps">
+
+        <div class="step">
+          <div class="step-number">1</div>
+          <h3>Đặt hàng</h3>
+          <p>Nhấn MUA NGAY và điền thông tin vào biểu mẫu.</p>
+        </div>
+
+        <div class="step">
+          <div class="step-number">2</div>
+          <h3>Thanh toán</h3>
+          <p>Thực hiện chuyển khoản theo hướng dẫn được cung cấp.</p>
+        </div>
+
+        <div class="step">
+          <div class="step-number">3</div>
+          <h3>Xác nhận</h3>
+          <p>Đơn hàng được kiểm tra và xác nhận thanh toán.</p>
+        </div>
+
+        <div class="step">
+          <div class="step-number">4</div>
+          <h3>Nhận sản phẩm</h3>
+          <p>File PDF được gửi đến email bạn đã đăng ký.</p>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- FAQ -->
+
+    <section class="section faq" id="faq">
+
+      <div class="section-heading">
+        <h2>Câu hỏi thường gặp</h2>
+        <p>Một số thông tin bạn nên biết trước khi mua hàng.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>1. Tôi nhận sản phẩm bằng cách nào?</h3>
+        <p>
+          Sau khi thanh toán được xác nhận,
+          file PDF sẽ được gửi đến email bạn đăng ký.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3>2. Tôi có cần cài đặt phần mềm không?</h3>
+        <p>
+          Không. Bạn có thể mở file PDF bằng điện thoại
+          hoặc máy tính có ứng dụng đọc PDF.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3>3. Nếu chưa nhận được email thì sao?</h3>
+        <p>
+          Hãy kiểm tra hộp thư Spam. Nếu vẫn chưa nhận được,
+          bạn có thể liên hệ để được hỗ trợ.
+        </p>
+      </div>
+
+    </section>
+
+
+    <!-- CONTACT -->
+
+    <section class="section" id="contact">
+
+      <div class="contact">
+
+        <h2>Liên hệ với chúng tôi</h2>
+
+        <p>
+          Bạn có thắc mắc về sản phẩm hoặc cần hỗ trợ?
+          Hãy liên hệ với AI Mini Business.
+        </p>
+
+        <p style="margin-top: 15px;">
+          Email: <strong>Đang cập nhật</strong>
+        </p>
+
+      </div>
+
+    </section>
+
+
+  </main>
+
+
+  <!-- FOOTER -->
+
+  <footer>
+
+    <div class="brand">AI Mini Business</div>
+
+    <p>
+      Giải pháp số giúp bạn làm việc thông minh hơn cùng AI.
+    </p>
+
+    <p style="margin-top: 12px;">
+      © 2026 AI Mini Business. All rights reserved.
+    </p>
+
+  </footer>
+
+</body>
+</html>
