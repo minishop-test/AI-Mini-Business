@@ -68,8 +68,8 @@ Browser requests must send credentials for the session cookie. State-changing ro
 - No email verification, password reset, MFA, or account lockout.
 - No CSRF token flow; Origin checking is only one layer of defense.
 - Basic admin and customer HTML pages are in `../admin/index.html` and `../customer/index.html`; they are static interfaces and still need deployment and browser/API integration testing.
-- Order workflow APIs support a manual review and payment process. There is no payment gateway or automatic email/file delivery.
-- Quota reservations are a first-stage server-side gate for registered users. They do not yet implement guest trials, paid top-ups, automatic release/settlement, or reliable provider metering.
+- Order workflow APIs support a manual review and payment process. Status updates include the previously-read status in the UPDATE condition to reject competing transitions, and delivery requires an HTTPS link. There is no payment gateway or automatic email/file delivery.
+- Quota usage and reservation rows are inserted together in a D1 batch. This is a first-stage gate for registered users; guest trials, paid top-ups, automatic timeout/reconciliation, and reliable provider metering are not implemented.
 - Each reservation currently uses a conservative fixed estimate of 1,000 internal budget units; this is a placeholder, not a real Cloudflare Neurons or currency conversion.
 - Service enable switches are configuration only; they do not enable generation.
 - No AI provider integration; generated content, logo image generation, website ZIP packaging and automated delivery are not implemented.
