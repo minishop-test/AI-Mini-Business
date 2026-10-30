@@ -276,6 +276,35 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/orders" && request.method === "POST") {
+      if (!env.DB) return json({ error: "database_not_configured" }, 503, env, request);
+      if (!requireTrustedOrigin(request, env)) return json({ error: "untrusted_origin" }, 403, env, request);
+      const user = await currentUser(request, env.DB);
+      if (!user) return json({ error: "not_authenticated" }, 401, env, request);
+      const body = await readJson(request);
+      const serviceId = body?.service_id;
+      const allowedIds = ["website", "video-prompts", "logo", "business-content", "documents"];
+      const brief = typeof body?.brief === "string" ? body.brief.trim() : "";
+      if (!allowedIds.includes(serviceId) || brief.length < 10 || brief.length > 8000) {
+        return json({ error: "invalid_order_input" }, 400, env, request);
+      }
+      const orderId = crypto.randomUUID();
+      await env.DB.prepare(
+        "INSERT INTO orders (id, user_id, service_id, status, customer_brief, amount_vnd) VALUES (?, ?, ?, 'pending_review', ?, 0)"
+      ).bind(orderId, user.id, serviceId, brief).run();
+      return json({ ok: true, order: { id: orderId, status: "pending_review", service_id: serviceId } }, 201, env, request);
+    }
+
+    if (url.pathname === "/api/orders/me" && request.method === "GET") {
+      if (!env.DB) return json({ error: "database_not_configured" }, 503, env, request);
+      const user = await currentUser(request, env.DB);
+      if (!user) return json({ error: "not_authenticated" }, 401, env, request);
+      const rows = await env.DB.prepare(
+        "SELECT id, service_id, status, customer_brief, amount_vnd, payment_reference, admin_note, preview_text, delivery_url, created_at, updated_at FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 100"
+      ).bind(user.id).all();
+      return json({ orders: rows.results || [] }, 200, env, request);
+    }
+
     if (url.pathname.startsWith("/api/quota/")) {
       if (!env.DB) return json({ error: "database_not_configured" }, 503, env, request);
       if (request.method === "POST" && !requireTrustedOrigin(request, env)) {
@@ -350,6 +379,76 @@ export default {
       const user = await currentUser(request, env.DB);
       if (!user) return json({ error: "not_authenticated" }, 401, env, request);
       if (user.role !== "admin") return json({ error: "forbidden" }, 403, env, request);
+
+      if (url.pathname === "/api/admin/customers" && request.method === "GET") {
+        const rows = await env.DB.prepare(
+          "SELECT u.id, u.email, u.role, u.created_at, (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) AS order_count, (SELECT COUNT(*) FROM usage_events e WHERE e.user_id = u.id) AS usage_count FROM users u ORDER BY u.created_at DESC LIMIT 100"
+        ).all();
+        return json({ customers: rows.results || [] }, 200, env, request);
+      }
+
+      if (url.pathname === "/api/admin/orders" && request.method === "GET") {
+        const status = url.searchParams.get("status");
+        const validStatuses = ["pending_review", "awaiting_payment", "paid", "processing", "delivered", "cancelled"];
+        if (status && !validStatuses.includes(status)) return json({ error: "invalid_status_filter" }, 400, env, request);
+        const rows = status
+          ? await env.DB.prepare(
+              "SELECT o.*, u.email AS customer_email FROM orders o LEFT JOIN users u ON u.id = o.user_id WHERE o.status = ? ORDER BY o.created_at DESC LIMIT 100"
+            ).bind(status).all()
+          : await env.DB.prepare(
+              "SELECT o.*, u.email AS customer_email FROM orders o LEFT JOIN users u ON u.id = o.user_id ORDER BY o.created_at DESC LIMIT 100"
+            ).all();
+        return json({ orders: rows.results || [] }, 200, env, request);
+      }
+
+      if (url.pathname === "/api/admin/order" && request.method === "POST") {
+        const body = await readJson(request);
+        const orderId = body?.order_id;
+        const nextStatus = body?.status;
+        const validStatuses = ["pending_review", "awaiting_payment", "paid", "processing", "delivered", "cancelled"];
+        if (typeof orderId !== "string" || !validStatuses.includes(nextStatus)) {
+          return json({ error: "invalid_input" }, 400, env, request);
+        }
+        const existing = await env.DB.prepare(
+          "SELECT id, status FROM orders WHERE id = ? LIMIT 1"
+        ).bind(orderId).first();
+        if (!existing) return json({ error: "order_not_found" }, 404, env, request);
+        const transitions = {
+          pending_review: ["awaiting_payment", "cancelled"],
+          awaiting_payment: ["paid", "cancelled"],
+          paid: ["processing", "cancelled"],
+          processing: ["delivered"],
+          delivered: [],
+          cancelled: [],
+        };
+        if (!transitions[existing.status]?.includes(nextStatus)) {
+          return json({ error: "invalid_status_transition", current_status: existing.status }, 409, env, request);
+        }
+        const amount = body.amount_vnd;
+        if (nextStatus === "awaiting_payment" && (!Number.isSafeInteger(amount) || amount < 0 || amount > 1000000000)) {
+          return json({ error: "valid_amount_required" }, 400, env, request);
+        }
+        if (body.preview_text !== undefined && (typeof body.preview_text !== "string" || body.preview_text.length > 30000)) {
+          return json({ error: "preview_too_long" }, 400, env, request);
+        }
+        if (body.admin_note !== undefined && (typeof body.admin_note !== "string" || body.admin_note.length > 3000)) {
+          return json({ error: "admin_note_too_long" }, 400, env, request);
+        }
+        if (body.delivery_url !== undefined && (typeof body.delivery_url !== "string" || body.delivery_url.length > 2000 || (body.delivery_url && !/^https:\/\//i.test(body.delivery_url)))) {
+          return json({ error: "invalid_delivery_url" }, 400, env, request);
+        }
+        const paymentReference = typeof body.payment_reference === "string" ? body.payment_reference.slice(0, 200) : null;
+        await env.DB.prepare(
+          "UPDATE orders SET status = ?, amount_vnd = CASE WHEN ? = 'awaiting_payment' THEN ? ELSE amount_vnd END, " +
+          "preview_text = COALESCE(?, preview_text), admin_note = COALESCE(?, admin_note), " +
+          "delivery_url = COALESCE(?, delivery_url), payment_reference = COALESCE(?, payment_reference), " +
+          "reviewed_at = CASE WHEN ? = 'awaiting_payment' THEN CURRENT_TIMESTAMP ELSE reviewed_at END, " +
+          "paid_at = CASE WHEN ? = 'paid' THEN CURRENT_TIMESTAMP ELSE paid_at END, " +
+          "delivered_at = CASE WHEN ? = 'delivered' THEN CURRENT_TIMESTAMP ELSE delivered_at END, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+        ).bind(nextStatus, nextStatus, amount ?? null, body.preview_text ?? null, body.admin_note ?? null, body.delivery_url ?? null, paymentReference, nextStatus, nextStatus, nextStatus, orderId).run();
+        await audit(env.DB, user.id, "order_status_changed", orderId, { from: existing.status, to: nextStatus });
+        return json({ ok: true, order_id: orderId, status: nextStatus }, 200, env, request);
+      }
 
       if (url.pathname === "/api/admin/overview" && request.method === "GET") {
         return json(await adminOverview(env.DB), 200, env, request);
