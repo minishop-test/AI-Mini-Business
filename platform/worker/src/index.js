@@ -387,6 +387,30 @@ export default {
         return json({ usage: rows.results || [] }, 200, env, request);
       }
 
+      if (url.pathname === "/api/admin/reservation" && request.method === "POST") {
+        const body = await readJson(request);
+        if (typeof body?.reservation_id !== "string" || !["complete", "release"].includes(body?.action)) {
+          return json({ error: "invalid_input" }, 400, env, request);
+        }
+        const reservation = await env.DB.prepare(
+          "SELECT id, usage_event_id, status FROM quota_reservations WHERE id = ? LIMIT 1"
+        ).bind(body.reservation_id).first();
+        if (!reservation || reservation.status !== "reserved") {
+          return json({ error: "reservation_not_found_or_closed" }, 404, env, request);
+        }
+        const nextStatus = body.action === "complete" ? "completed" : "refunded";
+        await env.DB.batch([
+          env.DB.prepare(
+            "UPDATE quota_reservations SET status = ?, settled_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'reserved'"
+          ).bind(body.action === "complete" ? "settled" : "released", reservation.id),
+          env.DB.prepare(
+            "UPDATE usage_events SET status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'reserved'"
+          ).bind(nextStatus, reservation.usage_event_id),
+        ]);
+        await audit(env.DB, user.id, "quota_reservation_" + body.action, reservation.id, {});
+        return json({ ok: true, reservation_id: reservation.id, status: nextStatus }, 200, env, request);
+      }
+
       return json({ error: "not_found" }, 404, env, request);
     }
 
