@@ -28,6 +28,21 @@ Authentication uses PBKDF2-SHA-256 password hashes with per-user salts and rando
 
 Bind the database as `DB`.
 
+## Cloudflare deployment template
+The folder includes `wrangler.toml` and `package.json`.
+
+1. Install Node.js and run `npm install` inside `platform/worker`.
+2. Create the D1 database using `npm run db:create`.
+3. Copy the generated database ID into `wrangler.toml` in place of the placeholder.
+4. Configure `ALLOWED_ORIGIN` to the exact public website origin (no trailing slash).
+5. Apply migrations in order with `npm run db:migrate:remote`.
+6. Deploy the API using `npm run deploy`.
+7. Test `GET /api/health` and confirm `/api/services` can read D1.
+
+For cookie-based login, use a custom domain arrangement on the same registrable domain, for example website `https://www.example.com` and API `https://api.example.com`. A Pages `.pages.dev` frontend calling a Worker `.workers.dev` API is cross-site and may have session cookies blocked by browser privacy settings. Configure CORS `ALLOWED_ORIGIN` to the exact frontend origin. Do not use wildcard origins.
+
+The admin page is at `/platform/admin/`; the customer page is at `/platform/customer/`. These static files are served by the same Pages site as the root `index.html`.
+
 ## Configure the first administrator
 Registration always creates a customer. There is intentionally no public admin-registration route.
 
