@@ -341,26 +341,29 @@ export default {
         const eventId = crypto.randomUUID();
         const day = new Date().toISOString().slice(0, 10);
         const fixedCostUnits = 1000;
-        const result = await env.DB.prepare(
-          "INSERT INTO usage_events (id, user_id, service_id, status, units, estimated_cost_units) " +
-          "SELECT ?, ?, ?, 'reserved', 1, ? " +
-          "WHERE (SELECT COUNT(*) FROM usage_events WHERE user_id = ? AND service_id = ? AND status IN ('reserved','completed')) < ? " +
-          "AND (SELECT COALESCE(SUM(estimated_cost_units),0) FROM usage_events WHERE created_at >= ? AND status IN ('reserved','completed')) + ? <= " +
-          "CAST(COALESCE((SELECT control_value FROM platform_controls WHERE control_key = 'daily_budget_units'), '0') AS INTEGER) " +
-          "AND (SELECT control_value FROM platform_controls WHERE control_key = 'global_ai_pause') = 'false' " +
-          "AND (SELECT enabled FROM service_settings WHERE service_id = ?) = 1"
-        ).bind(eventId, user.id, serviceId, fixedCostUnits, user.id, serviceId, Number(settings.registered_free_uses), day + " 00:00:00", fixedCostUnits, serviceId).run();
+        const reservationResults = await env.DB.batch([
+          env.DB.prepare(
+            "INSERT INTO usage_events (id, user_id, service_id, status, units, estimated_cost_units) " +
+            "SELECT ?, ?, ?, 'reserved', 1, ? " +
+            "WHERE (SELECT COUNT(*) FROM usage_events WHERE user_id = ? AND service_id = ? AND status IN ('reserved','completed')) < ? " +
+            "AND (SELECT COALESCE(SUM(estimated_cost_units),0) FROM usage_events WHERE created_at >= ? AND status IN ('reserved','completed')) + ? <= " +
+            "CAST(COALESCE((SELECT control_value FROM platform_controls WHERE control_key = 'daily_budget_units'), '0') AS INTEGER) " +
+            "AND (SELECT control_value FROM platform_controls WHERE control_key = 'global_ai_pause') = 'false' " +
+            "AND (SELECT enabled FROM service_settings WHERE service_id = ?) = 1"
+          ).bind(eventId, user.id, serviceId, fixedCostUnits, user.id, serviceId, Number(settings.registered_free_uses), day + " 00:00:00", fixedCostUnits, serviceId),
+          env.DB.prepare(
+            "INSERT INTO quota_reservations (id, usage_event_id, user_id, service_id, reserved_units, reservation_date_utc, status) " +
+            "SELECT ?, ?, ?, ?, 1, ?, 'reserved' WHERE EXISTS (SELECT 1 FROM usage_events WHERE id = ? AND status = 'reserved')"
+          ).bind(reservationId, eventId, user.id, serviceId, day, eventId),
+        ]);
+        const result = reservationResults[0];
 
-        if (!result.meta?.changes) {
+        if (!result?.meta?.changes) {
           const snapshot = await getQuotaSnapshot(env.DB, user.id);
           const target = snapshot.services.find(x => x.service_id === serviceId);
           if (target && target.remaining <= 0) return json({ error: "free_quota_exhausted", quota: target }, 429, env, request);
           return json({ error: "daily_budget_or_pause", quota: snapshot }, 429, env, request);
         }
-
-        await env.DB.prepare(
-          "INSERT INTO quota_reservations (id, usage_event_id, user_id, service_id, reserved_units, reservation_date_utc, status) VALUES (?, ?, ?, ?, 1, ?, 'reserved')"
-        ).bind(reservationId, eventId, user.id, serviceId, day).run();
 
         return json({
           ok: true,
