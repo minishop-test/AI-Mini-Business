@@ -53,8 +53,23 @@ footer{font-size:12px;color:#738095;margin-top:18px}
 <div style="overflow-x:auto"><table><thead><tr><th>Dịch vụ</th><th>Trạng thái</th><th>Số lượt</th><th>Đơn vị ước tính</th><th>Đơn vị thực tế</th></tr></thead><tbody id="usageRows"><tr><td colspan="5">Chưa có dữ liệu.</td></tr></tbody></table></div>
 </section>
 <section class="card">
-<h2>Đơn hàng</h2>
+<h2>Quản lý khách hàng</h2>
+<div style="overflow-x:auto"><table><thead><tr><th>Email</th><th>Vai trò</th><th>Đơn hàng</th><th>Lượt dùng</th><th>Ngày tạo</th></tr></thead><tbody id="customerRows"><tr><td colspan="5">Chưa có dữ liệu.</td></tr></tbody></table></div>
+</section>
+<section class="card">
+<h2>Quản lý đơn hàng</h2>
+<div class="row" style="margin-bottom:12px"><select id="orderFilter" style="padding:10px;border:1px solid #cbd3df;border-radius:9px"><option value="">Tất cả trạng thái</option><option value="pending_review">Chờ duyệt</option><option value="awaiting_payment">Chờ thanh toán</option><option value="paid">Đã thanh toán</option><option value="processing">Đang xử lý</option><option value="delivered">Đã bàn giao</option><option value="cancelled">Đã hủy</option></select><button id="loadOrders" class="secondary">Tải đơn hàng</button></div>
 <div id="orderRows" class="muted">Chưa có dữ liệu.</div>
+</section>
+<section class="card" id="orderEditor" hidden>
+<h2>Xử lý đơn hàng</h2>
+<div id="selectedOrder" class="muted"></div>
+<label class="muted">Ghi chú cho khách hàng</label><textarea id="adminNote" rows="3" style="width:100%;padding:10px;border:1px solid #cbd3df;border-radius:9px;margin:6px 0 12px"></textarea>
+<label class="muted">Nội dung xem trước</label><textarea id="previewText" rows="4" style="width:100%;padding:10px;border:1px solid #cbd3df;border-radius:9px;margin:6px 0 12px"></textarea>
+<label class="muted">Giá (VNĐ, khi gửi báo giá)</label><input id="orderAmount" type="number" min="0" max="1000000000" style="margin:6px 0 12px">
+<label class="muted">Link bàn giao HTTPS</label><input id="deliveryUrl" type="url" placeholder="https://..." style="margin:6px 0 12px">
+<div class="row"><button id="toQuote">Duyệt & gửi báo giá</button><button id="toPaid" class="secondary">Xác nhận đã thanh toán</button><button id="toProcessing" class="secondary">Bắt đầu xử lý</button><button id="toDelivered" class="secondary">Đánh dấu đã bàn giao</button><button id="cancelOrder" class="danger">Hủy đơn</button></div>
+<div class="muted" style="margin-top:10px">Chỉ chọn bước phù hợp với trạng thái hiện tại. Xác nhận thanh toán là thao tác thủ công của quản trị viên.</div>
 </section>
 <footer>Giao diện này gọi API quản trị thật. Không nhập hoặc lưu mật khẩu tại trang này. Chức năng AI vẫn có thể đang bị khóa trong backend.</footer>
 </div>
@@ -104,6 +119,54 @@ async function toggleService(id,enabled,checkbox){
   catch(e){checkbox.checked=!enabled;show("Không thể cập nhật: "+e.message,"error");}
   finally{checkbox.disabled=false;}
 }
+async function loadCustomers(){
+  const data=await api("/api/admin/customers");
+  $("customerRows").innerHTML="";
+  (data.customers||[]).forEach(c=>{
+    const tr=document.createElement("tr");
+    [c.email,c.role,c.order_count,c.usage_count,(c.created_at||"").slice(0,10)].forEach(v=>{const td=document.createElement("td");td.textContent=v??"";tr.append(td);});
+    $("customerRows").append(tr);
+  });
+  if(!(data.customers||[]).length)$("customerRows").innerHTML="<tr><td colspan='5'>Chưa có khách hàng.</td></tr>";
+}
+let selectedOrder=null;
+async function loadOrders(){
+  try{
+    const filter=$("orderFilter").value;
+    const data=await api("/api/admin/orders"+(filter?"?status="+encodeURIComponent(filter):""));
+    $("orderRows").innerHTML="";
+    (data.orders||[]).forEach(o=>{
+      const item=document.createElement("div");item.className="service";
+      const info=document.createElement("div");info.className="grow";
+      const title=document.createElement("strong");title.textContent=serviceName(o.service_id)+" · "+o.status;
+      const detail=document.createElement("div");detail.className="muted";detail.textContent=(o.customer_email||"Khách") + " · "+o.amount_vnd+" VNĐ · "+(o.created_at||"");
+      info.append(title,detail);
+      const btn=document.createElement("button");btn.className="secondary";btn.textContent="Mở đơn";
+      btn.addEventListener("click",()=>selectOrder(o));
+      item.append(info,btn);$("orderRows").append(item);
+    });
+    if(!(data.orders||[]).length)$("orderRows").textContent="Không có đơn hàng.";
+  }catch(e){$("orderRows").textContent="Không tải được đơn hàng: "+e.message;}
+}
+function selectOrder(o){
+  selectedOrder=o;$("orderEditor").hidden=false;
+  $("selectedOrder").textContent="Đơn "+o.id+" · "+(o.customer_email||"") +" · "+o.status+" · "+o.service_id;
+  $("adminNote").value=o.admin_note||"";
+  $("previewText").value=o.preview_text||"";
+  $("orderAmount").value=o.amount_vnd||0;
+  $("deliveryUrl").value=o.delivery_url||"";
+  $("orderEditor").scrollIntoView({behavior:"smooth",block:"start"});
+}
+async function updateOrder(status){
+  if(!selectedOrder)return;
+  const body={order_id:selectedOrder.id,status,admin_note:$("adminNote").value,preview_text:$("previewText").value,delivery_url:$("deliveryUrl").value};
+  if(status==="awaiting_payment")body.amount_vnd=Number($("orderAmount").value);
+  try{
+    await api("/api/admin/order",{method:"POST",body:JSON.stringify(body)});
+    show("Đã cập nhật đơn hàng.","ok");await loadAll();await loadOrders();
+    $("orderEditor").hidden=true;selectedOrder=null;
+  }catch(e){show("Không cập nhật được đơn: "+e.message,"error");}
+}
 async function loadAll(){
   show("Đang tải dữ liệu...");
   try{
@@ -116,11 +179,19 @@ async function loadAll(){
       $("usageRows").append(tr);
     });
     if(!(usage.usage||[]).length)$("usageRows").innerHTML="<tr><td colspan='5'>Chưa có lượt sử dụng.</td></tr>";
+    await loadCustomers();
     show("Đã tải dữ liệu quản trị.","ok");
   }catch(e){show("Không tải được dữ liệu: "+e.message+". Hãy kiểm tra đăng nhập admin, địa chỉ API và ALLOWED_ORIGIN.","error");}
 }
 $("saveApi").addEventListener("click",()=>{localStorage.setItem("aib_api_base",apiRoot());loadAll();});
 $("refresh").addEventListener("click",loadAll);
+$("loadOrders").addEventListener("click",loadOrders);
+$("orderFilter").addEventListener("change",loadOrders);
+$("toQuote").addEventListener("click",()=>updateOrder("awaiting_payment"));
+$("toPaid").addEventListener("click",()=>updateOrder("paid"));
+$("toProcessing").addEventListener("click",()=>updateOrder("processing"));
+$("toDelivered").addEventListener("click",()=>updateOrder("delivered"));
+$("cancelOrder").addEventListener("click",()=>updateOrder("cancelled"));
 $("pauseBtn").addEventListener("click",async()=>{
   if(!overview)return;
   const paused=!overview.global_ai_pause;
