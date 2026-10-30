@@ -1,0 +1,16 @@
+{
+  "name": "ai-mini-business-api",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AI Mini Business Cloudflare Worker API foundation",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create ai-mini-business-db",
+    "db:migrate:local": "wrangler d1 migrations apply ai-mini-business-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply ai-mini-business-db --remote"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
