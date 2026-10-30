@@ -13,7 +13,7 @@ function corsHeaders(env, request) {
   if (allowed && origin === allowed) {
     headers["access-control-allow-origin"] = allowed;
     headers["access-control-allow-credentials"] = "true";
-    headers["access-control-allow-methods"] = "GET,POST,OPTIONS",
+    headers["access-control-allow-methods"] = "GET,POST,OPTIONS";
     headers["access-control-allow-headers"] = "content-type";
   }
   return headers;
