@@ -438,14 +438,17 @@ export default {
           return json({ error: "invalid_delivery_url" }, 400, env, request);
         }
         const paymentReference = typeof body.payment_reference === "string" ? body.payment_reference.slice(0, 200) : null;
-        await env.DB.prepare(
+        const updateResult = await env.DB.prepare(
           "UPDATE orders SET status = ?, amount_vnd = CASE WHEN ? = 'awaiting_payment' THEN ? ELSE amount_vnd END, " +
           "preview_text = COALESCE(?, preview_text), admin_note = COALESCE(?, admin_note), " +
           "delivery_url = COALESCE(?, delivery_url), payment_reference = COALESCE(?, payment_reference), " +
           "reviewed_at = CASE WHEN ? = 'awaiting_payment' THEN CURRENT_TIMESTAMP ELSE reviewed_at END, " +
           "paid_at = CASE WHEN ? = 'paid' THEN CURRENT_TIMESTAMP ELSE paid_at END, " +
-          "delivered_at = CASE WHEN ? = 'delivered' THEN CURRENT_TIMESTAMP ELSE delivered_at END, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
-        ).bind(nextStatus, nextStatus, amount ?? null, body.preview_text ?? null, body.admin_note ?? null, body.delivery_url ?? null, paymentReference, nextStatus, nextStatus, nextStatus, orderId).run();
+          "delivered_at = CASE WHEN ? = 'delivered' THEN CURRENT_TIMESTAMP ELSE delivered_at END, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = ?"
+        ).bind(nextStatus, nextStatus, amount ?? null, body.preview_text ?? null, body.admin_note ?? null, body.delivery_url ?? null, paymentReference, nextStatus, nextStatus, nextStatus, orderId, existing.status).run();
+        if (!updateResult.meta?.changes) {
+          return json({ error: "order_changed_retry", message: "Đơn hàng vừa được cập nhật ở thao tác khác. Hãy tải lại đơn." }, 409, env, request);
+        }
         await audit(env.DB, user.id, "order_status_changed", orderId, { from: existing.status, to: nextStatus });
         return json({ ok: true, order_id: orderId, status: nextStatus }, 200, env, request);
       }
