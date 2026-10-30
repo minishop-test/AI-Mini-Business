@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dịch vụ AI – AI Mini Business</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#172033;font:16px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:#111827;color:#fff;padding:18px 5%}header a{color:#93c5fd;text-decoration:none}
+main{max-width:900px;margin:26px auto;padding:0 16px}.card{background:#fff;border:1px solid #e3e8ef;border-radius:14px;padding:20px;margin-bottom:16px}
+h1{font-size:24px;margin:0 0 4px}h2{font-size:19px;margin:0 0 14px}.muted{font-size:13px;color:#64748b}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 5px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit;background:#fff}
+textarea{min-height:120px;resize:vertical}
+button{border:0;border-radius:9px;padding:11px 15px;background:#2563eb;color:white;font:inherit;font-weight:650;cursor:pointer}
+button.secondary{background:#e9eef6;color:#1e293b}button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row>*{flex:1}
+.hidden{display:none!important}.notice{padding:11px 13px;background:#eff6ff;border-radius:9px;color:#1e40af;font-size:14px;margin-top:12px}.notice.error{background:#fff1f2;color:#9f1239}.notice.ok{background:#ecfdf5;color:#166534}
+.quota{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.quota div{background:#f7f9fc;padding:12px;border-radius:10px}.quota strong{display:block;font-size:20px}
+.order{padding:14px 0;border-bottom:1px solid #e9edf3}.order:last-child{border:0}.status{display:inline-block;border-radius:20px;padding:3px 9px;background:#eef2f7;font-size:12px}
+@media(max-width:560px){main{margin:16px auto}.card{padding:16px}.row{display:grid}}
+</style>
+</head>
+<body>
+<header><h1>AI Mini Business</h1><div class="muted" style="color:#cbd5e1">Khu vực khách hàng · <a href="../../">Về trang chủ</a></div></header>
+<main>
+<section class="card">
+<h2>Kết nối</h2>
+<label for="apiBase">Địa chỉ API</label><input id="apiBase" placeholder="https://api.tenmiencuaban.com">
+<div class="row" style="margin-top:10px"><button id="saveApi" class="secondary">Lưu địa chỉ API</button><button id="checkApi" class="secondary">Kiểm tra kết nối</button></div>
+<div id="message" class="notice">Nhập địa chỉ API đã được cấu hình. Nếu chưa triển khai backend, các chức năng tài khoản chưa thể hoạt động.</div>
+</section>
+<section class="card" id="authCard">
+<h2>Tài khoản</h2>
+<div class="row"><button id="showLogin" class="secondary">Đăng nhập</button><button id="showRegister" class="secondary">Tạo tài khoản</button></div>
+<form id="authForm">
+<label for="email">Email</label><input id="email" type="email" autocomplete="email" required maxlength="254">
+<label for="password">Mật khẩu</label><input id="password" type="password" autocomplete="current-password" required minlength="12" maxlength="128">
+<p class="muted">Mật khẩu cần ít nhất 12 ký tự. Không dùng mật khẩu của tài khoản quan trọng khác.</p>
+<button id="authSubmit" type="submit">Đăng nhập</button>
+</form>
+</section>
+<section class="card hidden" id="accountCard">
+<div class="row"><div><h2 id="welcome">Tài khoản</h2><div class="muted">Đăng nhập thành công</div></div><button id="logout" class="secondary">Đăng xuất</button></div>
+<h2 style="margin-top:18px">Lượt miễn phí còn lại</h2>
+<div id="quota" class="quota"><div>Đang tải…</div></div>
+</section>
+<section class="card hidden" id="requestCard">
+<h2>Gửi yêu cầu dịch vụ</h2>
+<form id="orderForm">
+<label for="service">Chọn dịch vụ</label><select id="service" required>
+<option value="website">Tạo website</option><option value="video-prompts">Viết prompt video AI</option><option value="logo">Thiết kế logo</option><option value="business-content">Nội dung kinh doanh</option><option value="documents">Tạo tài liệu số</option>
+</select>
+<label for="brief">Mô tả yêu cầu</label><textarea id="brief" minlength="10" maxlength="8000" required placeholder="Mô tả mục tiêu, nội dung, phong cách, đối tượng sử dụng và yêu cầu đầu ra…"></textarea>
+<p class="muted">Yêu cầu sẽ được gửi để quản trị viên xem xét. Việc gửi yêu cầu chưa tự động tạo sản phẩm AI hoặc phát sinh thanh toán.</p>
+<button id="submitOrder" type="submit">Gửi yêu cầu</button>
+</form>
+</section>
+<section class="card hidden" id="ordersCard">
+<h2>Đơn hàng của tôi</h2><button id="reloadOrders" class="secondary">Cập nhật đơn hàng</button>
+<div id="orders" style="margin-top:10px">Chưa tải đơn hàng.</div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let authMode="login",currentUser=null;
+function apiRoot(){return $("apiBase").value.trim().replace(/\/$/,"");}
+function notice(message,kind=""){$("message").textContent=message;$("message").className="notice "+kind;}
+async function api(path,options={}){
+ const root=apiRoot();if(!root)throw new Error("Bạn cần nhập địa chỉ API.");
+ const response=await fetch(root+path,{...options,credentials:"include",headers:{"content-type":"application/json",...(options.headers||{})}});
+ const data=await response.json().catch(()=>({error:"invalid_response"}));
+ if(!response.ok)throw new Error(data.message||data.error||("HTTP "+response.status));
+ return data;
+}
+function setMode(mode){authMode=mode;$("authSubmit").textContent=mode==="login"?"Đăng nhập":"Tạo tài khoản";$("password").autocomplete=mode==="login"?"current-password":"new-password";}
+function serviceName(id){return ({website:"Tạo website","video-prompts":"Prompt video AI",logo:"Thiết kế logo","business-content":"Nội dung kinh doanh",documents:"Tài liệu số"})[id]||id;}
+function statusName(status){return ({pending_review:"Chờ quản trị viên xem xét",awaiting_payment:"Chờ thanh toán",paid:"Đã thanh toán",processing:"Đang xử lý",delivered:"Đã bàn giao",cancelled:"Đã hủy"})[status]||status;}
+async function refreshQuota(){
+ const data=await api("/api/quota/me");$("quota").innerHTML="";
+ (data.services||[]).forEach(s=>{const item=document.createElement("div");const title=document.createElement("span");title.className="muted";title.textContent=serviceName(s.service_id);const value=document.createElement("strong");value.textContent=s.remaining+" / "+s.free_limit;const note=document.createElement("span");note.className="muted";note.textContent=s.enabled?"lượt còn lại":"dịch vụ đang tạm tắt";item.append(title,value,note);$("quota").append(item);});
+}
+async function refreshOrders(){
+ const data=await api("/api/orders/me");$("orders").innerHTML="";
+ (data.orders||[]).forEach(o=>{
+  const item=document.createElement("div");item.className="order";
+  const title=document.createElement("strong");title.textContent=serviceName(o.service_id);
+  const state=document.createElement("span");state.className="status";state.textContent=statusName(o.status);
+  const brief=document.createElement("p");brief.className="muted";brief.textContent=o.customer_brief||"";
+  const amount=document.createElement("p");amount.textContent="Giá: "+Number(o.amount_vnd||0).toLocaleString("vi-VN")+" VNĐ";
+  item.append(title,document.createTextNode(" "),state,brief,amount);
+  if(o.admin_note){const note=document.createElement("p");note.className="muted";note.textContent="Ghi chú: "+o.admin_note;item.append(note);}
+  if(o.preview_text){const preview=document.createElement("details");const summary=document.createElement("summary");summary.textContent="Xem nội dung xem trước";const body=document.createElement("pre");body.style.whiteSpace="pre-wrap";body.textContent=o.preview_text;preview.append(summary,body);item.append(preview);}
+  if(o.delivery_url && o.status==="delivered"){const link=document.createElement("a");link.href=o.delivery_url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Mở sản phẩm đã bàn giao";item.append(link);}
+  $("orders").append(item);
+ });
+ if(!(data.orders||[]).length)$("orders").textContent="Bạn chưa có đơn hàng.";
+}
+async function enterAccount(user){
+ currentUser=user;$("authCard").classList.add("hidden");$("accountCard").classList.remove("hidden");$("requestCard").classList.remove("hidden");$("ordersCard").classList.remove("hidden");$("welcome").textContent=user.email;
+ await Promise.all([refreshQuota(),refreshOrders()]);
+}
+$("showLogin").addEventListener("click",()=>setMode("login"));
+$("showRegister").addEventListener("click",()=>setMode("register"));
+$("authForm").addEventListener("submit",async e=>{
+ e.preventDefault();$("authSubmit").disabled=true;
+ try{
+  const data=await api("/api/auth/"+authMode,{method:"POST",body:JSON.stringify({email:$("email").value,password:$("password").value})});
+  $("password").value="";await enterAccount(data.user);notice(authMode==="login"?"Đăng nhập thành công.":"Tạo tài khoản thành công.","ok");
+ }catch(err){notice("Không thể xác thực: "+err.message,"error");}
+ finally{$("authSubmit").disabled=false;}
+});
+$("logout").addEventListener("click",async()=>{
+ try{await api("/api/auth/logout",{method:"POST"});}catch(e){}
+ currentUser=null;$("authCard").classList.remove("hidden");$("accountCard").classList.add("hidden");$("requestCard").classList.add("hidden");$("ordersCard").classList.add("hidden");notice("Bạn đã đăng xuất.");
+});
+$("orderForm").addEventListener("submit",async e=>{
+ e.preventDefault();$("submitOrder").disabled=true;
+ try{
+  const data=await api("/api/orders",{method:"POST",body:JSON.stringify({service_id:$("service").value,brief:$("brief").value})});
+  $("brief").value="";notice("Đã gửi yêu cầu. Mã đơn: "+data.order.id+". Quản trị viên sẽ xem xét trước khi báo giá.","ok");await refreshOrders();
+ }catch(err){notice("Không gửi được yêu cầu: "+err.message,"error");}
+ finally{$("submitOrder").disabled=false;}
+});
+$("reloadOrders").addEventListener("click",async()=>{try{await refreshOrders();await refreshQuota();notice("Đã cập nhật dữ liệu.","ok");}catch(e){notice(e.message,"error");}});
+$("saveApi").addEventListener("click",()=>{localStorage.setItem("aib_customer_api",apiRoot());notice("Đã lưu địa chỉ API trên thiết bị này.");});
+$("checkApi").addEventListener("click",async()=>{try{const data=await api("/api/health");notice("Kết nối thành công: "+data.service,"ok");}catch(e){notice("Không kết nối được: "+e.message,"error");}});
+$("apiBase").value=localStorage.getItem("aib_customer_api")||"";
+setMode("login");
+(async()=>{if(!apiRoot())return;try{const data=await api("/api/auth/me");await enterAccount(data.user);notice("Đã khôi phục phiên đăng nhập.","ok");}catch(e){} })();
+</script>
+</body></html>
