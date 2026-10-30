@@ -94,6 +94,20 @@ function requireTrustedOrigin(request, env) {
   return Boolean(expected && origin === expected);
 }
 
+async function rateLimit(db, request, scope, identity, limit, windowSeconds) {
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const key = await sha256(scope + "|" + ip + "|" + (identity || ""));
+  const now = Math.floor(Date.now() / 1000);
+  const result = await db.prepare(
+    "INSERT INTO api_rate_limits (rate_key, window_started_at, hits, updated_at) VALUES (?, ?, 1, CURRENT_TIMESTAMP) " +
+    "ON CONFLICT(rate_key) DO UPDATE SET " +
+    "hits = CASE WHEN window_started_at <= ? THEN 1 ELSE hits + 1 END, " +
+    "window_started_at = CASE WHEN window_started_at <= ? THEN excluded.window_started_at ELSE window_started_at END, " +
+    "updated_at = CURRENT_TIMESTAMP RETURNING hits"
+  ).bind(key, now, now - windowSeconds, now - windowSeconds).first();
+  return Number(result?.hits || 0) <= limit;
+}
+
 async function createSession(db, userId) {
   const token = randomToken();
   const tokenHash = await sha256(token);
@@ -201,6 +215,14 @@ export default {
       if (request.method === "POST" && !requireTrustedOrigin(request, env)) {
         return json({ error: "untrusted_origin" }, 403, env, request);
       }
+      if (url.pathname === "/api/auth/register" && request.method === "POST" &&
+          !(await rateLimit(env.DB, request, "register", "", 5, 900))) {
+        return json({ error: "rate_limited", message: "Quá nhiều lần đăng ký từ kết nối này. Vui lòng thử lại sau 15 phút." }, 429, env, request, { "retry-after": "900" });
+      }
+      if (url.pathname === "/api/auth/login" && request.method === "POST" &&
+          !(await rateLimit(env.DB, request, "login", "", 10, 900))) {
+        return json({ error: "rate_limited", message: "Quá nhiều lần đăng nhập. Vui lòng thử lại sau 15 phút." }, 429, env, request, { "retry-after": "900" });
+      }
 
       if (url.pathname === "/api/auth/register" && request.method === "POST") {
         const body = await readJson(request);
@@ -281,6 +303,9 @@ export default {
       if (!requireTrustedOrigin(request, env)) return json({ error: "untrusted_origin" }, 403, env, request);
       const user = await currentUser(request, env.DB);
       if (!user) return json({ error: "not_authenticated" }, 401, env, request);
+      if (!(await rateLimit(env.DB, request, "order-create", user.id, 10, 900))) {
+        return json({ error: "rate_limited", message: "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 15 phút." }, 429, env, request, { "retry-after": "900" });
+      }
       const body = await readJson(request);
       const serviceId = body?.service_id;
       const allowedIds = ["website", "video-prompts", "logo", "business-content", "documents"];
