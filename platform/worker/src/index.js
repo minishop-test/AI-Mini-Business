@@ -413,7 +413,7 @@ export default {
           return json({ error: "invalid_input" }, 400, env, request);
         }
         const existing = await env.DB.prepare(
-          "SELECT id, status FROM orders WHERE id = ? LIMIT 1"
+          "SELECT id, status, delivery_url FROM orders WHERE id = ? LIMIT 1"
         ).bind(orderId).first();
         if (!existing) return json({ error: "order_not_found" }, 404, env, request);
         const transitions = {
@@ -439,6 +439,9 @@ export default {
         }
         if (body.delivery_url !== undefined && (typeof body.delivery_url !== "string" || body.delivery_url.length > 2000 || (body.delivery_url && !/^https:\/\//i.test(body.delivery_url)))) {
           return json({ error: "invalid_delivery_url" }, 400, env, request);
+        }
+        if (nextStatus === "delivered" && !(body.delivery_url || existing.delivery_url)) {
+          return json({ error: "delivery_url_required", message: "Cần có đường dẫn HTTPS trước khi đánh dấu đã bàn giao." }, 400, env, request);
         }
         const paymentReference = typeof body.payment_reference === "string" ? body.payment_reference.slice(0, 200) : null;
         const updateResult = await env.DB.prepare(
