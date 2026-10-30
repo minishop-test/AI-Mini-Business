@@ -13,7 +13,7 @@ function corsHeaders(env, request) {
   if (allowed && origin === allowed) {
     headers["access-control-allow-origin"] = allowed;
     headers["access-control-allow-credentials"] = "true";
-    headers["access-control-allow-methods"] = "GET,POST,OPTIONS";
+    headers["access-control-allow-methods"] = "GET,POST,OPTIONS",
     headers["access-control-allow-headers"] = "content-type";
   }
   return headers;
@@ -115,15 +115,39 @@ async function currentUser(request, db) {
   return row || null;
 }
 
+async function audit(db, adminId, action, targetId, details) {
+  await db.prepare(
+    "INSERT INTO admin_audit_log (id, admin_user_id, action, target_id, details_json) VALUES (?, ?, ?, ?, ?)"
+  ).bind(crypto.randomUUID(), adminId, action, targetId || null, JSON.stringify(details || {})).run();
+}
+
+async function adminOverview(db) {
+  const [users, orders, usage, services, pause] = await Promise.all([
+    db.prepare("SELECT COUNT(*) AS total FROM users").first(),
+    db.prepare("SELECT status, COUNT(*) AS total FROM orders GROUP BY status").all(),
+    db.prepare("SELECT status, COUNT(*) AS total FROM usage_events GROUP BY status").all(),
+    db.prepare("SELECT service_id, enabled, guest_free_uses, registered_free_uses, max_input_chars, max_output_tokens FROM service_settings ORDER BY service_id").all(),
+    db.prepare("SELECT control_value FROM platform_controls WHERE control_key = 'global_ai_pause'").first(),
+  ]);
+  return {
+    users: users?.total || 0,
+    orders_by_status: orders?.results || [],
+    usage_by_status: usage?.results || [],
+    services: services?.results || [],
+    global_ai_pause: pause?.control_value !== "false",
+    generation_enabled: false,
+    note: "AI generation remains disabled until quota reservation and cost controls are completed.",
+  };
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const headers = corsHeaders(env, request);
 
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
-        headers: { ...headers, "access-control-max-age": "86400" },
+        headers: { ...corsHeaders(env, request), "access-control-max-age": "86400" },
       });
     }
 
@@ -132,15 +156,11 @@ export default {
     }
 
     if (url.pathname === "/api/services" && request.method === "GET") {
-      return json({
-        services: [
-          { id: "website", enabled: false, status: "coming_soon" },
-          { id: "video-prompts", enabled: false, status: "coming_soon" },
-          { id: "logo", enabled: false, status: "coming_soon" },
-          { id: "business-content", enabled: false, status: "coming_soon" },
-          { id: "documents", enabled: false, status: "coming_soon" },
-        ],
-      }, 200, env, request);
+      if (!env.DB) return json({ error: "database_not_configured" }, 503, env, request);
+      const rows = await env.DB.prepare(
+        "SELECT service_id AS id, enabled FROM service_settings ORDER BY service_id"
+      ).all();
+      return json({ services: rows.results || [] }, 200, env, request);
     }
 
     if (url.pathname.startsWith("/api/auth/")) {
@@ -224,11 +244,56 @@ export default {
       }
     }
 
-    if (url.pathname === "/api/generate" && request.method === "POST") {
-      if (env.AI_ENABLED !== "true" || env.GLOBAL_PAUSE !== "false") {
-        return json({ error: "generation_disabled", message: "AI generation is not enabled yet." }, 503, env, request);
+    if (url.pathname.startsWith("/api/admin/")) {
+      if (!env.DB) return json({ error: "database_not_configured" }, 503, env, request);
+      if (request.method !== "GET" && !requireTrustedOrigin(request, env)) {
+        return json({ error: "untrusted_origin" }, 403, env, request);
       }
-      return json({ error: "not_implemented", message: "Generation workflow is not implemented yet." }, 501, env, request);
+      const user = await currentUser(request, env.DB);
+      if (!user) return json({ error: "not_authenticated" }, 401, env, request);
+      if (user.role !== "admin") return json({ error: "forbidden" }, 403, env, request);
+
+      if (url.pathname === "/api/admin/overview" && request.method === "GET") {
+        return json(await adminOverview(env.DB), 200, env, request);
+      }
+
+      if (url.pathname === "/api/admin/pause" && request.method === "POST") {
+        const body = await readJson(request);
+        if (typeof body?.paused !== "boolean") {
+          return json({ error: "invalid_input", message: "paused phải là true hoặc false." }, 400, env, request);
+        }
+        await env.DB.prepare(
+          "INSERT INTO platform_controls (control_key, control_value, updated_at) VALUES ('global_ai_pause', ?, CURRENT_TIMESTAMP) ON CONFLICT(control_key) DO UPDATE SET control_value = excluded.control_value, updated_at = CURRENT_TIMESTAMP"
+        ).bind(String(body.paused)).run();
+        await audit(env.DB, user.id, "global_ai_pause_changed", null, { paused: body.paused });
+        return json({ ok: true, global_ai_pause: body.paused }, 200, env, request);
+      }
+
+      if (url.pathname === "/api/admin/service" && request.method === "POST") {
+        const body = await readJson(request);
+        const validIds = ["website", "video-prompts", "logo", "business-content", "documents"];
+        if (!validIds.includes(body?.service_id) || typeof body?.enabled !== "boolean") {
+          return json({ error: "invalid_input" }, 400, env, request);
+        }
+        await env.DB.prepare(
+          "UPDATE service_settings SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE service_id = ?"
+        ).bind(body.enabled ? 1 : 0, body.service_id).run();
+        await audit(env.DB, user.id, "service_enabled_changed", body.service_id, { enabled: body.enabled });
+        return json({ ok: true, service_id: body.service_id, enabled: body.enabled }, 200, env, request);
+      }
+
+      if (url.pathname === "/api/admin/usage" && request.method === "GET") {
+        const rows = await env.DB.prepare(
+          "SELECT service_id, status, COUNT(*) AS requests, COALESCE(SUM(estimated_cost_units), 0) AS estimated_units, COALESCE(SUM(actual_cost_units), 0) AS actual_units FROM usage_events GROUP BY service_id, status ORDER BY service_id, status"
+        ).all();
+        return json({ usage: rows.results || [] }, 200, env, request);
+      }
+
+      return json({ error: "not_found" }, 404, env, request);
+    }
+
+    if (url.pathname === "/api/generate" && request.method === "POST") {
+      return json({ error: "generation_disabled", message: "AI generation is not enabled yet." }, 503, env, request);
     }
 
     return json({ error: "not_found" }, 404, env, request);
