@@ -10,6 +10,8 @@ This is a development foundation, not a production-ready service.
 - `GET /api/admin/usage`: admin-only usage-event aggregates.
 - `POST /api/admin/pause`: admin-only global AI pause setting.
 - `POST /api/admin/service`: admin-only service enable/disable.
+- `GET /api/quota/me`: customer quota snapshot by service.
+- `POST /api/quota/reserve`: reserves one registered free use when the service is enabled, the global pause is off, the customer has remaining quota, and the daily budget permits it. This does not start AI generation.
 - `POST /api/generate`: always disabled; no AI provider is called.
 
 Authentication uses PBKDF2-SHA-256 password hashes with per-user salts and random session tokens stored as SHA-256 hashes. Session cookies are HttpOnly, Secure, SameSite=Lax.
@@ -18,6 +20,7 @@ Authentication uses PBKDF2-SHA-256 password hashes with per-user salts and rando
 1. `migrations/0001_initial.sql`
 2. `migrations/0002_auth_sessions.sql`
 3. `migrations/0003_admin_and_service_controls.sql`
+4. `migrations/0004_quota_budget.sql`
 
 Bind the database as `DB`.
 
@@ -46,7 +49,8 @@ Browser requests must send credentials for the session cookie. State-changing ro
 - No email verification, password reset, MFA, or account lockout.
 - No CSRF token flow; Origin checking is only one layer of defense.
 - Admin APIs are implemented, but there is no admin web interface.
-- Usage overview only reads event records; no quota reservation or reliable provider metering is implemented.
+- Quota reservations are a first-stage server-side gate for registered users. They do not yet implement guest trials, paid top-ups, automatic release/settlement, or reliable provider metering.
+- Each reservation currently uses a conservative fixed estimate of 1,000 internal budget units; this is a placeholder, not a real Cloudflare Neurons or currency conversion.
 - Service enable switches are configuration only; they do not enable generation.
 - No order review, payment confirmation, file delivery, or AI provider integration.
 - Security review and deployment testing are still required.
