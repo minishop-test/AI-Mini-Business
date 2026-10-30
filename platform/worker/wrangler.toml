@@ -1,0 +1,14 @@
+name = "ai-mini-business-api"
+main = "src/index.js"
+compatibility_date = "2026-10-30"
+workers_dev = true
+
+[vars]
+# Set this to the exact origin of the deployed website, e.g. https://your-domain.pages.dev
+ALLOWED_ORIGIN = "https://REPLACE-WITH-YOUR-SITE.pages.dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-mini-business-db"
+database_id = "REPLACE-WITH-YOUR-D1-DATABASE-ID"
+migrations_dir = "migrations"
