@@ -6,6 +6,9 @@ This is a development foundation, not a production-ready service.
 - `GET /api/health`: health check.
 - `GET /api/services`: service availability from D1 settings.
 - `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
+- `POST /api/orders`, `GET /api/orders/me`: customer order submission and own-order listing.
+- `GET /api/admin/customers`, `GET /api/admin/orders`: admin-only customer and order lists.
+- `POST /api/admin/order`: admin-only order status transitions, quote, preview, notes and delivery link.
 - `GET /api/admin/overview`: admin-only counts and service settings.
 - `GET /api/admin/usage`: admin-only usage-event aggregates.
 - `POST /api/admin/pause`: admin-only global AI pause setting.
@@ -21,6 +24,7 @@ Authentication uses PBKDF2-SHA-256 password hashes with per-user salts and rando
 2. `migrations/0002_auth_sessions.sql`
 3. `migrations/0003_admin_and_service_controls.sql`
 4. `migrations/0004_quota_budget.sql`
+5. `migrations/0005_order_workflow.sql`
 
 Bind the database as `DB`.
 
@@ -48,11 +52,12 @@ Browser requests must send credentials for the session cookie. State-changing ro
 - No rate limiting or bot/abuse protection.
 - No email verification, password reset, MFA, or account lockout.
 - No CSRF token flow; Origin checking is only one layer of defense.
-- Admin APIs are implemented, but there is no admin web interface.
+- Basic admin and customer HTML pages are in `../admin/index.html` and `../customer/index.html`; they are static interfaces and still need deployment and browser/API integration testing.
+- Order workflow APIs support a manual review and payment process. There is no payment gateway or automatic email/file delivery.
 - Quota reservations are a first-stage server-side gate for registered users. They do not yet implement guest trials, paid top-ups, automatic release/settlement, or reliable provider metering.
 - Each reservation currently uses a conservative fixed estimate of 1,000 internal budget units; this is a placeholder, not a real Cloudflare Neurons or currency conversion.
 - Service enable switches are configuration only; they do not enable generation.
-- No order review, payment confirmation, file delivery, or AI provider integration.
+- No AI provider integration; generated content, logo image generation, website ZIP packaging and automated delivery are not implemented.
 - Security review and deployment testing are still required.
 
 ## Cost and secret safety
