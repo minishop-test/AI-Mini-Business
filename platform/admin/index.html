@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Mini Business – Quản trị</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#18202b;background:#f4f6f9}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:1100px;margin:auto;padding:24px}
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:22px}
+h1{font-size:24px;margin:0}h2{font-size:17px;margin:0 0 14px}.muted{color:#687386;font-size:13px}
+.card{background:white;border:1px solid #e3e8ef;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px #15223808}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1;min-width:220px}
+input{width:100%;padding:11px 12px;border:1px solid #cbd3df;border-radius:9px;font:inherit}
+button{border:0;border-radius:9px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:#172b4d;color:white}
+button.secondary{background:#edf1f6;color:#26364c}button.danger{background:#a72c36}button:disabled{opacity:.5;cursor:not-allowed}
+.status{padding:10px 12px;border-radius:9px;background:#eef3f8;color:#34445b;font-size:13px;margin-top:12px}
+.status.error{background:#fff0ef;color:#9b2929}.status.ok{background:#eaf8ef;color:#21653b}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.metric{padding:14px;background:#f7f9fc;border-radius:10px}.metric strong{display:block;font-size:25px;margin-top:5px}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:11px 8px;border-bottom:1px solid #edf0f4}th{color:#687386;font-weight:600}
+.pill{display:inline-block;padding:4px 8px;border-radius:20px;background:#edf1f6;font-size:12px}
+.service{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid #edf0f4}.service:last-child{border:0}
+.switch{display:flex;align-items:center;gap:8px;font-size:13px}
+footer{font-size:12px;color:#738095;margin-top:18px}
+@media(max-width:700px){.wrap{padding:14px}.grid{grid-template-columns:1fr 1fr}header{align-items:flex-start;flex-direction:column}table{font-size:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><div><h1>AI Mini Business</h1><div class="muted">Bảng điều khiển quản trị</div></div><button id="refresh">Làm mới dữ liệu</button></header>
+<section class="card">
+<h2>Kết nối API</h2>
+<div class="row"><div class="grow"><input id="apiBase" placeholder="https://api.tenmiencuaban.com"></div><button id="saveApi" class="secondary">Lưu địa chỉ API</button></div>
+<div class="muted" style="margin-top:8px">Nhập địa chỉ Worker API. Nếu website và API dùng chung tên miền, có thể nhập cùng tên miền website.</div>
+<div id="message" class="status">Chưa tải dữ liệu. Hãy nhập API và đăng nhập tài khoản quản trị ở cùng tên miền API trước.</div>
+</section>
+<section class="card">
+<h2>Tổng quan</h2>
+<div class="grid">
+<div class="metric"><span class="muted">Tài khoản</span><strong id="users">—</strong></div>
+<div class="metric"><span class="muted">Đơn hàng</span><strong id="orders">—</strong></div>
+<div class="metric"><span class="muted">Lượt AI ghi nhận</span><strong id="usage">—</strong></div>
+</div>
+<div class="row" style="margin-top:16px"><strong>Trạng thái AI toàn hệ thống:</strong><span id="pauseState" class="pill">Chưa rõ</span><button id="pauseBtn" class="danger" disabled>Tạm dừng AI</button></div>
+</section>
+<section class="card">
+<h2>Quản lý dịch vụ</h2>
+<div id="services" class="muted">Chưa có dữ liệu dịch vụ.</div>
+</section>
+<section class="card">
+<h2>Lượt sử dụng và tài nguyên ước tính</h2>
+<div style="overflow-x:auto"><table><thead><tr><th>Dịch vụ</th><th>Trạng thái</th><th>Số lượt</th><th>Đơn vị ước tính</th><th>Đơn vị thực tế</th></tr></thead><tbody id="usageRows"><tr><td colspan="5">Chưa có dữ liệu.</td></tr></tbody></table></div>
+</section>
+<section class="card">
+<h2>Đơn hàng</h2>
+<div id="orderRows" class="muted">Chưa có dữ liệu.</div>
+</section>
+<footer>Giao diện này gọi API quản trị thật. Không nhập hoặc lưu mật khẩu tại trang này. Chức năng AI vẫn có thể đang bị khóa trong backend.</footer>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+let overview = null;
+function apiRoot(){return ($("apiBase").value.trim() || "").replace(/\/$/,"");}
+function show(message,kind=""){ $("message").textContent=message; $("message").className="status "+kind; }
+async function api(path,options={}){
+  const root=apiRoot(); if(!root) throw new Error("Nhập địa chỉ API trước.");
+  const response=await fetch(root+path,{...options,credentials:"include",headers:{"content-type":"application/json",...(options.headers||{})}});
+  const data=await response.json().catch(()=>({error:"invalid_response"}));
+  if(!response.ok) throw new Error(data.message || data.error || ("HTTP "+response.status));
+  return data;
+}
+function serviceName(id){return ({website:"Tạo website","video-prompts":"Prompt video",logo:"Thiết kế logo","business-content":"Nội dung kinh doanh",documents:"Tài liệu"})[id]||id;}
+function renderOverview(data){
+  overview=data;
+  $("users").textContent=data.users??0;
+  $("orders").textContent=(data.orders_by_status||[]).reduce((n,x)=>n+Number(x.total||0),0);
+  $("usage").textContent=(data.usage_by_status||[]).reduce((n,x)=>n+Number(x.total||0),0);
+  const paused=Boolean(data.global_ai_pause);
+  $("pauseState").textContent=paused?"Đang tạm dừng":"Đang mở";
+  $("pauseBtn").textContent=paused?"Mở khóa AI":"Tạm dừng AI";
+  $("pauseBtn").className=paused?"secondary":"danger";
+  $("pauseBtn").disabled=false;
+  $("services").innerHTML="";
+  (data.services||[]).forEach(s=>{
+    const row=document.createElement("div");row.className="service";
+    const label=document.createElement("div");
+    label.innerHTML="<strong></strong><div class='muted'></div>";
+    label.children[0].textContent=serviceName(s.service_id);
+    label.children[1].textContent="Miễn phí: "+s.registered_free_uses+" lượt/tài khoản · tối đa "+s.max_input_chars+" ký tự";
+    const wrap=document.createElement("label");wrap.className="switch";
+    const checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.checked=Boolean(s.enabled);
+    checkbox.addEventListener("change",()=>toggleService(s.service_id,checkbox.checked,checkbox));
+    const text=document.createElement("span");text.textContent=checkbox.checked?"Đang bật":"Đang tắt";
+    checkbox.addEventListener("change",()=>{text.textContent=checkbox.checked?"Đang bật":"Đang tắt";});
+    wrap.append(checkbox,text);row.append(label,wrap);$("services").append(row);
+  });
+  $("orderRows").innerHTML=(data.orders_by_status||[]).map(x=>"<span class='pill'></span>").join(" ")||"Chưa có đơn hàng.";
+  [...$("orderRows").children].forEach((el,i)=>{const x=data.orders_by_status[i];el.textContent=x.status+": "+x.total;});
+}
+async function toggleService(id,enabled,checkbox){
+  checkbox.disabled=true;
+  try{await api("/api/admin/service",{method:"POST",body:JSON.stringify({service_id:id,enabled})});show("Đã cập nhật "+serviceName(id)+".","ok");await loadAll();}
+  catch(e){checkbox.checked=!enabled;show("Không thể cập nhật: "+e.message,"error");}
+  finally{checkbox.disabled=false;}
+}
+async function loadAll(){
+  show("Đang tải dữ liệu...");
+  try{
+    const [data,usage]=await Promise.all([api("/api/admin/overview"),api("/api/admin/usage")]);
+    renderOverview(data);
+    $("usageRows").innerHTML="";
+    (usage.usage||[]).forEach(x=>{
+      const tr=document.createElement("tr");
+      [serviceName(x.service_id),x.status,x.requests,x.estimated_units,x.actual_units].forEach(value=>{const td=document.createElement("td");td.textContent=value;tr.append(td);});
+      $("usageRows").append(tr);
+    });
+    if(!(usage.usage||[]).length)$("usageRows").innerHTML="<tr><td colspan='5'>Chưa có lượt sử dụng.</td></tr>";
+    show("Đã tải dữ liệu quản trị.","ok");
+  }catch(e){show("Không tải được dữ liệu: "+e.message+". Hãy kiểm tra đăng nhập admin, địa chỉ API và ALLOWED_ORIGIN.","error");}
+}
+$("saveApi").addEventListener("click",()=>{localStorage.setItem("aib_api_base",apiRoot());loadAll();});
+$("refresh").addEventListener("click",loadAll);
+$("pauseBtn").addEventListener("click",async()=>{
+  if(!overview)return;
+  const paused=!overview.global_ai_pause;
+  $("pauseBtn").disabled=true;
+  try{await api("/api/admin/pause",{method:"POST",body:JSON.stringify({paused})});show(paused?"Đã tạm dừng AI toàn hệ thống.":"Đã bỏ tạm dừng AI. Lưu ý: AI vẫn chưa được triển khai.","ok");await loadAll();}
+  catch(e){show("Không thể đổi trạng thái: "+e.message,"error");}
+  finally{$("pauseBtn").disabled=false;}
+});
+$("apiBase").value=localStorage.getItem("aib_api_base")||"";
+</script>
+</body>
+</html>
