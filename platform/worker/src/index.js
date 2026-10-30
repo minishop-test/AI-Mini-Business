@@ -121,6 +121,38 @@ async function audit(db, adminId, action, targetId, details) {
   ).bind(crypto.randomUUID(), adminId, action, targetId || null, JSON.stringify(details || {})).run();
 }
 
+async function getQuotaSnapshot(db, userId) {
+  const day = new Date().toISOString().slice(0, 10);
+  const rows = await db.prepare(
+    "SELECT s.service_id, s.enabled, s.registered_free_uses, s.max_input_chars, s.max_output_tokens, " +
+    "(SELECT COUNT(*) FROM usage_events u WHERE u.user_id = ? AND u.service_id = s.service_id AND u.status IN ('reserved','completed') ) AS used " +
+    "FROM service_settings s ORDER BY s.service_id"
+  ).bind(userId).all();
+  const controls = await db.prepare(
+    "SELECT control_key, control_value FROM platform_controls WHERE control_key IN ('global_ai_pause','daily_budget_units')"
+  ).all();
+  const values = Object.fromEntries((controls.results || []).map(x => [x.control_key, x.control_value]));
+  const budget = Math.max(0, Number(values.daily_budget_units || 0));
+  const used = await db.prepare(
+    "SELECT COALESCE(SUM(estimated_cost_units),0) AS units FROM usage_events WHERE created_at >= ? AND status IN ('reserved','completed')"
+  ).bind(day + " 00:00:00").first();
+  return {
+    day_utc: day,
+    global_ai_pause: values.global_ai_pause !== "false",
+    daily_budget_units: budget,
+    daily_used_units: Number(used?.units || 0),
+    services: (rows.results || []).map(x => ({
+      service_id: x.service_id,
+      enabled: Boolean(x.enabled),
+      free_limit: Number(x.registered_free_uses),
+      used: Number(x.used),
+      remaining: Math.max(0, Number(x.registered_free_uses) - Number(x.used)),
+      max_input_chars: Number(x.max_input_chars),
+      max_output_tokens: Number(x.max_output_tokens),
+    })),
+  };
+}
+
 async function adminOverview(db) {
   const [users, orders, usage, services, pause] = await Promise.all([
     db.prepare("SELECT COUNT(*) AS total FROM users").first(),
@@ -241,6 +273,72 @@ export default {
         return json({ ok: true }, 200, env, request, {
           "set-cookie": sessionCookie("", 0),
         });
+      }
+    }
+
+    if (url.pathname.startsWith("/api/quota/")) {
+      if (!env.DB) return json({ error: "database_not_configured" }, 503, env, request);
+      if (request.method === "POST" && !requireTrustedOrigin(request, env)) {
+        return json({ error: "untrusted_origin" }, 403, env, request);
+      }
+      const user = await currentUser(request, env.DB);
+      if (!user) return json({ error: "not_authenticated" }, 401, env, request);
+
+      if (url.pathname === "/api/quota/me" && request.method === "GET") {
+        return json(await getQuotaSnapshot(env.DB, user.id), 200, env, request);
+      }
+
+      if (url.pathname === "/api/quota/reserve" && request.method === "POST") {
+        const body = await readJson(request);
+        const serviceId = body?.service_id;
+        const allowedIds = ["website", "video-prompts", "logo", "business-content", "documents"];
+        if (!allowedIds.includes(serviceId)) return json({ error: "invalid_service" }, 400, env, request);
+
+        const settings = await env.DB.prepare(
+          "SELECT enabled, registered_free_uses, max_input_chars FROM service_settings WHERE service_id = ?"
+        ).bind(serviceId).first();
+        if (!settings || !settings.enabled) return json({ error: "service_unavailable" }, 403, env, request);
+        const pause = await env.DB.prepare(
+          "SELECT control_value FROM platform_controls WHERE control_key = 'global_ai_pause'"
+        ).first();
+        if (pause?.control_value !== "false") return json({ error: "global_ai_pause" }, 503, env, request);
+
+        const brief = typeof body?.brief === "string" ? body.brief.trim() : "";
+        if (!brief || brief.length > Number(settings.max_input_chars)) {
+          return json({ error: "invalid_brief", max_input_chars: Number(settings.max_input_chars) }, 400, env, request);
+        }
+
+        const reservationId = crypto.randomUUID();
+        const eventId = crypto.randomUUID();
+        const day = new Date().toISOString().slice(0, 10);
+        const fixedCostUnits = 1000;
+        const result = await env.DB.prepare(
+          "INSERT INTO usage_events (id, user_id, service_id, status, units, estimated_cost_units) " +
+          "SELECT ?, ?, ?, 'reserved', 1, ? " +
+          "WHERE (SELECT COUNT(*) FROM usage_events WHERE user_id = ? AND service_id = ? AND status IN ('reserved','completed')) < ? " +
+          "AND (SELECT COALESCE(SUM(estimated_cost_units),0) FROM usage_events WHERE created_at >= ? AND status IN ('reserved','completed')) + ? <= " +
+          "CAST(COALESCE((SELECT control_value FROM platform_controls WHERE control_key = 'daily_budget_units'), '0') AS INTEGER) " +
+          "AND (SELECT control_value FROM platform_controls WHERE control_key = 'global_ai_pause') = 'false' " +
+          "AND (SELECT enabled FROM service_settings WHERE service_id = ?) = 1"
+        ).bind(eventId, user.id, serviceId, fixedCostUnits, user.id, serviceId, Number(settings.registered_free_uses), day + " 00:00:00", fixedCostUnits, serviceId).run();
+
+        if (!result.meta?.changes) {
+          const snapshot = await getQuotaSnapshot(env.DB, user.id);
+          const target = snapshot.services.find(x => x.service_id === serviceId);
+          if (target && target.remaining <= 0) return json({ error: "free_quota_exhausted", quota: target }, 429, env, request);
+          return json({ error: "daily_budget_or_pause", quota: snapshot }, 429, env, request);
+        }
+
+        await env.DB.prepare(
+          "INSERT INTO quota_reservations (id, usage_event_id, user_id, service_id, reserved_units, reservation_date_utc, status) VALUES (?, ?, ?, ?, 1, ?, 'reserved')"
+        ).bind(reservationId, eventId, user.id, serviceId, day).run();
+
+        return json({
+          ok: true,
+          reservation_id: reservationId,
+          message: "Đã giữ một lượt miễn phí. Tác vụ AI chưa chạy cho đến khi quy trình tạo sản phẩm được triển khai.",
+          generation_started: false,
+        }, 201, env, request);
       }
     }
 
