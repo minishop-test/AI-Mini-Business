@@ -373,7 +373,7 @@ test("customer admin dashboard provides local product and order search fields", 
 });
 
 test("customer storefront and API do not collect or expose customer phone numbers", () => {
-  assert.doesNotMatch(customerStorefront, /customerPhone|customer_phone/);
+  assert.doesNotMatch(customerSiteHtml, /customerPhone|customer_phone/);
   assert.doesNotMatch(customerAdmin, /customer_phone|Điện thoại/);
   assert.doesNotMatch(customerSiteApi, /customer_phone/);
   assert.match(customerSiteApi, /INSERT INTO orders \(id,customer_name,customer_email,product_id/);
