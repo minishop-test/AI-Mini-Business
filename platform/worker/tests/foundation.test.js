@@ -261,6 +261,20 @@ test("customer ZIP builder personalizes storefront branding and creates product 
   assert.match(zipBuilder, /safeColor/);
 });
 
+test("generated customer ZIP applies the selected visual design and safely escapes customer content", () => {
+  assert.match(api, /value\.replace\("<body>", '<body class="theme-'/);
+  assert.match(api, /theme-bold/);
+  assert.match(api, /theme-editorial/);
+  assert.match(api, /repeat\("\+columns\+"/);
+  assert.match(api, /store-nav/);
+  assert.match(api, /store-hero/);
+  assert.match(api, /esc\(storeName\)/);
+  assert.match(api, /esc\(tagline\)/);
+  assert.match(api, /esc\(heroImageUrl\)/);
+  assert.match(api, /esc\(p\.slice\(0,40\)\)/);
+  assert.match(api, /primaryColor/);
+});
+
 test("admin can generate a personalized website ZIP directly from a paid website order", () => {
   assert.match(api, /import \{ zipSync, strToU8 \} from "fflate"/);
   assert.match(api, /CUSTOMER_SITE_FILES/);
