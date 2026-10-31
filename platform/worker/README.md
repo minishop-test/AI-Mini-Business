@@ -50,7 +50,7 @@ The folder includes `wrangler.toml` and `package.json`.
 
 For cookie-based login, use a custom domain arrangement on the same registrable domain, for example website `https://www.example.com` and API `https://api.example.com`. A Pages `.pages.dev` frontend calling a Worker `.workers.dev` API is cross-site and may have session cookies blocked by browser privacy settings. Configure CORS `ALLOWED_ORIGIN` to the exact frontend origin. Do not use wildcard origins.
 
-The admin page is at `/platform/admin/`; the customer page is at `/platform/customer/`. The customer page includes a gated business-content draft form. These static files are served by the same Pages site as the root `index.html`.
+The admin page is at `/platform/admin/`; the customer page is at `/platform/customer/`. The admin dashboard displays the live generation switch, global pause, daily budget, today's estimated usage and actual usage counters, plus service controls. The customer page includes a gated business-content draft form. These static files are served by the same Pages site as the root `index.html`.
 
 ## Configure the first administrator
 Registration always creates a customer. There is intentionally no public admin-registration route.
@@ -84,7 +84,7 @@ Browser requests must send credentials for the session cookie. State-changing ro
 - Quota usage and reservation rows are inserted together in a D1 batch. This is a first-stage gate for registered users; guest trials, paid top-ups, automatic timeout/reconciliation, and reliable provider metering are not implemented.
 - Migration 0008 adds a per-service estimated cost in internal units and a daily request cap. Initial estimates are placeholders (website 3,000; logo 2,500; documents 900; video prompts/business content 700 units per use) and are not Cloudflare Neurons, dollars, or a provider bill. Replace them only after measuring actual model/provider usage. The global daily budget starts at 10,000 internal units.
 - Service enable switches are configuration only; they do not enable generation.
-- No AI provider integration; generated content, logo image generation, website ZIP packaging and automated delivery are not implemented.
+- The first gated Workers AI text-generation endpoint is implemented for `business-content`; it still needs deployment and live runtime testing. Logo image generation, website ZIP packaging and automated delivery are not implemented.
 - Security review and deployment testing are still required.
 
 ## Cost and secret safety
@@ -122,3 +122,6 @@ The feature is OFF by default. Migration 0009 inserts `ai_generation_enabled=fal
 The endpoint only accepts `business-content`, caps the brief at 4,000 characters and output at 512 tokens, rate-limits a user to 3 attempts/hour, reserves the user's registered free quota and daily budget before inference, records provider/model and output in D1, and releases the reservation if inference fails. These internal budget units are placeholders and do not equal Cloudflare's billed token usage. The first runtime tests must be performed by the owner with a low-risk test account while monitoring the Cloudflare dashboard. Do not enable paid billing or automatic overages as part of this step.
 
 Cloudflare documents this model and its `env.AI.run()` binding here: https://developers.cloudflare.com/ai/models/@cf/meta/llama-3.2-1b-instruct/
+
+## Admin AI monitoring dashboard
+The admin dashboard reads `generation_enabled`, `daily_budget_units`, and `today_usage` from `GET /api/admin/overview`. It can switch the gated business-content test on/off with `POST /api/admin/ai-generation` and update the internal daily budget with `POST /api/admin/budget`. The displayed actual usage remains zero until provider-specific metering is implemented; do not treat internal estimates as invoices.
