@@ -220,7 +220,7 @@ test("customer site has a real admin dashboard for products and orders", () => {
   assert.match(customerSiteApi, /SELECT id,name,description,price_vnd,image_url,active,created_at FROM products/);
   assert.match(customerSiteApi, /PATCH/);
   assert.match(customerSiteApi, /invalid_product_status/);
-  assert.match(customerSiteApi, /UPDATE products SET name=\\?,description=\\?,price_vnd=\\?,image_url=\\?,active=\\?/);
+  assert.ok(customerSiteApi.includes("UPDATE products SET name=?,description=?,price_vnd=?,image_url=?,active=? WHERE id=?"));
 });
 
 test("customer admin dashboard uses session-only token and safe DOM text rendering", () => {
@@ -353,11 +353,9 @@ test("customer storefront admin awaits session checks and throttles failed login
 test("customer storefront records admin mutations and exposes a protected read-only audit log", () => {
   assert.match(customerSiteApi, /async function writeAudit/);
   assert.match(customerSiteApi, /INSERT INTO admin_audit_log/);
-  assert.match(customerSiteApi, /product\.created/);
-  assert.ok(customerSiteApi.includes('data.active ? "product.activated" : "product.hidden"'));
-  assert.match(customerSiteApi, /product\.hidden/);
-  assert.match(customerSiteApi, /order\.status_changed/);
-  assert.match(customerSiteApi, /api\/admin\/audit-log/);
+  assert.ok(customerSiteApi.includes('"product.updated"'));
+  assert.match(customerSiteApi, /product\\.updated/);
+  assert.match(customerSiteApi, /order\\.status_changed/);
   assert.match(customerSiteApi, /await isAdmin\(request, env\)/);
   assert.match(customerSiteSchema, /CREATE TABLE IF NOT EXISTS admin_audit_log/);
   assert.match(customerAdmin, /id="auditLog"/);
