@@ -339,6 +339,17 @@ test("customer storefront admin uses expiring hashed sessions and deployment sch
   assert.match(customerSiteReadme, /0002_admin_sessions\.sql/);
 });
 
+test("customer storefront admin awaits session checks and throttles failed login attempts", () => {
+  assert.match(customerSiteApi, /await isAdmin\(request, env\)/);
+  assert.doesNotMatch(customerSiteApi, /if \(!isAdmin\(request, env\)\)/);
+  assert.match(customerSiteApi, /admin_login_attempts/);
+  assert.match(customerSiteApi, /attempts\.attempts >= 5/);
+  assert.match(customerSiteApi, /15 \* 60 \* 1000/);
+  assert.match(customerSiteApi, /login_rate_limited/);
+  assert.match(customerSiteSchema, /CREATE TABLE IF NOT EXISTS admin_login_attempts/);
+  assert.match(customerAdmin, /api\/admin\/login/);
+});
+
 test("customer can edit website draft fields and save through authenticated revision endpoint", () => {
   assert.match(api, /websiteConfigMatch/);
   assert.match(api, /UPDATE orders SET preview_text/);
