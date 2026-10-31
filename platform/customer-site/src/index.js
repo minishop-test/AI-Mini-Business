@@ -206,14 +206,32 @@ export default {
         const form = await request.formData();
         const file = form.get("file");
         if (!(file instanceof File) || file.size < 1 || file.size > 20 * 1024 * 1024) return json({ error: "invalid_file_size" }, 400, request, env);
-        const allowed = new Set(["application/pdf","text/plain","application/zip","application/vnd.openxmlformats-officedocument.wordprocessingml.document","image/png","image/jpeg","image/svg+xml"]);
-        if (!allowed.has(file.type)) return json({ error: "unsupported_file_type" }, 400, request, env);
+        const extension = (file.name.split(".").pop() || "").toLowerCase();
+        const allowedExtensions = new Set(["pdf","txt","zip","docx","png","jpg","jpeg"]);
+        if (!allowedExtensions.has(extension)) return json({ error: "unsupported_file_type" }, 400, request, env);
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const starts = (...signature) => signature.every((value,index) => bytes[index] === value);
+        let verifiedType = null;
+        if (extension === "pdf" && new TextDecoder().decode(bytes.slice(0,5)) === "%PDF-") verifiedType = "application/pdf";
+        else if (extension === "png" && starts(0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a)) verifiedType = "image/png";
+        else if (["jpg","jpeg"].includes(extension) && starts(0xff,0xd8,0xff)) verifiedType = "image/jpeg";
+        else if (["zip","docx"].includes(extension) && starts(0x50,0x4b,0x03,0x04)) verifiedType = extension === "docx" ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" : "application/zip";
+        else if (extension === "txt" && !bytes.slice(0,Math.min(bytes.length,4096)).includes(0)) verifiedType = "text/plain";
+        if (!verifiedType) return json({ error: "file_content_does_not_match_extension" }, 400, request, env);
         const safeName = (file.name || "delivery-file").normalize("NFKC").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 150) || "delivery-file";
+        const previous = await env.DB.prepare("SELECT object_key FROM order_deliveries WHERE order_id=?").bind(uploadMatch[1]).first();
         const objectKey = "orders/" + uploadMatch[1] + "/" + id();
-        await env.DELIVERIES.put(objectKey, await file.arrayBuffer(), { httpMetadata: { contentType: file.type, contentDisposition: "attachment; filename=\"" + safeName + "\" ", cacheControl: "private, no-store" } });
-        await env.DB.prepare("INSERT INTO order_deliveries (order_id,object_key,file_name,content_type,size_bytes) VALUES (?,?,?,?,?) ON CONFLICT(order_id) DO UPDATE SET object_key=excluded.object_key,file_name=excluded.file_name,content_type=excluded.content_type,size_bytes=excluded.size_bytes,uploaded_at=CURRENT_TIMESTAMP")
-          .bind(uploadMatch[1],objectKey,safeName,file.type,file.size).run();
-        await writeAudit(env, "order.delivery_file_uploaded", "order", uploadMatch[1], { file_name: safeName, size_bytes: file.size });
+        await env.DELIVERIES.put(objectKey, bytes, { httpMetadata: { contentType: verifiedType, contentDisposition: "attachment; filename=\"" + safeName + "\"", cacheControl: "private, no-store" } });
+        try {
+          await env.DB.prepare("INSERT INTO order_deliveries (order_id,object_key,file_name,content_type,size_bytes) VALUES (?,?,?,?,?) ON CONFLICT(order_id) DO UPDATE SET object_key=excluded.object_key,file_name=excluded.file_name,content_type=excluded.content_type,size_bytes=excluded.size_bytes,uploaded_at=CURRENT_TIMESTAMP")
+            .bind(uploadMatch[1],objectKey,safeName,verifiedType,file.size).run();
+          await env.DB.prepare("DELETE FROM delivery_download_tokens WHERE order_id=?").bind(uploadMatch[1]).run();
+        } catch (error) {
+          await env.DELIVERIES.delete(objectKey);
+          throw error;
+        }
+        if (previous?.object_key) await env.DELIVERIES.delete(previous.object_key);
+        await writeAudit(env, "order.delivery_file_uploaded", "order", uploadMatch[1], { file_name: safeName, size_bytes: file.size, content_type: verifiedType });
         return json({ ok: true, file_name: safeName, size_bytes: file.size }, 201, request, env);
       }
 
