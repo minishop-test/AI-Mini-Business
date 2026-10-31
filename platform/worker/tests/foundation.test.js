@@ -285,6 +285,22 @@ test("bundled website template contains isolated customer frontend, API and depl
   assert.match(customerTemplate, /customer-store-api/);
 });
 
+test("visual editor supports layout templates, product columns, banner and device preview", () => {
+  assert.match(customer, /id="editTemplate"/);
+  assert.match(customer, /id="editColumns"/);
+  assert.match(customer, /id="editHeroImage"/);
+  assert.match(customer, /id="editHeroTitle"/);
+  assert.match(customer, /id="editViewport"/);
+  assert.match(customer, /pv-editorial/);
+  assert.match(customer, /pv-mobile/);
+  assert.match(customer, /--pv-cols/);
+  assert.match(customer, /banner\.src=cfg\.heroImageUrl/);
+  assert.match(api, /const template = \["minimal","bold","editorial"\]/);
+  assert.match(api, /const productColumns = \[2,3,4\]/);
+  assert.match(api, /const heroImageUrl/);
+  assert.match(api, /const heroTitle/);
+});
+
 test("customer can edit website draft fields and save through authenticated revision endpoint", () => {
   assert.match(api, /websiteConfigMatch/);
   assert.match(api, /UPDATE orders SET preview_text/);
