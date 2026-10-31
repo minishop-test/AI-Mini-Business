@@ -77,6 +77,10 @@ footer{font-size:12px;color:#738095;margin-top:18px}
 <label class="muted">Nội dung xem trước</label><textarea id="previewText" rows="4" style="width:100%;padding:10px;border:1px solid #cbd3df;border-radius:9px;margin:6px 0 12px"></textarea>
 <label class="muted">Giá (VNĐ, khi gửi báo giá)</label><input id="orderAmount" type="number" min="0" max="1000000000" style="margin:6px 0 12px">
 <label class="muted">Link bàn giao HTTPS</label><input id="deliveryUrl" type="url" placeholder="https://..." style="margin:6px 0 12px">
+<label class="muted">ZIP website (tối đa 10 MB, chỉ cho đơn đã thanh toán)</label><input id="packageFile" type="file" accept=".zip,application/zip" style="margin:6px 0 12px">
+<button id="uploadPackage" class="secondary" type="button">Tải ZIP riêng tư lên đơn hàng</button>
+<div class="muted" style="margin-top:10px">File được lưu trong R2 riêng tư. Khách chỉ tải được sau khi bạn đánh dấu đơn đã bàn giao.</div>
+
 <div class="row"><button id="toQuote">Duyệt & gửi báo giá</button><button id="toPaid" class="secondary">Xác nhận đã thanh toán</button><button id="toProcessing" class="secondary">Bắt đầu xử lý</button><button id="toDelivered" class="secondary">Đánh dấu đã bàn giao</button><button id="cancelOrder" class="danger">Hủy đơn</button></div>
 <div class="muted" style="margin-top:10px">Chỉ chọn bước phù hợp với trạng thái hiện tại. Xác nhận thanh toán là thao tác thủ công của quản trị viên.</div>
 </section>
@@ -189,6 +193,21 @@ function selectOrder(o){
   $("deliveryUrl").value=o.delivery_url||"";
   $("orderEditor").scrollIntoView({behavior:"smooth",block:"start"});
 }
+async function uploadOrderPackage(){
+ if(!selectedOrder)throw new Error("Chưa chọn đơn hàng.");
+ const file=$("packageFile").files[0];
+ if(!file)throw new Error("Hãy chọn file ZIP.");
+ if(!file.name.toLowerCase().endsWith(".zip")||file.size<22||file.size>10*1024*1024)throw new Error("ZIP phải có dung lượng từ 22 byte đến 10 MB.");
+ const root=apiRoot();if(!root)throw new Error("Nhập địa chỉ API trước.");
+ const response=await fetch(root+"/api/admin/order-package?order_id="+encodeURIComponent(selectedOrder.id),{
+  method:"POST",credentials:"include",headers:{"content-type":"application/zip"},body:file
+ });
+ const data=await response.json().catch(()=>({error:"invalid_response"}));
+ if(!response.ok)throw new Error(data.message||data.error||("HTTP "+response.status));
+ $("deliveryUrl").value=data.delivery_url;
+ show("Đã tải ZIP riêng tư lên đơn hàng ("+Number(data.package_size).toLocaleString("vi-VN")+" byte). Bây giờ có thể đánh dấu đã bàn giao.","ok");
+ await loadOrders();
+}
 async function updateOrder(status){
   if(!selectedOrder)return;
   const body={order_id:selectedOrder.id,status,admin_note:$("adminNote").value,preview_text:$("previewText").value,delivery_url:$("deliveryUrl").value};
@@ -221,6 +240,7 @@ $("generationBtn").addEventListener("click",()=>toggleGeneration(!overview?.gene
 $("saveBudget").addEventListener("click",saveBudget);
 $("loadOrders").addEventListener("click",loadOrders);
 $("orderFilter").addEventListener("change",loadOrders);
+$("uploadPackage").addEventListener("click",async()=>{ $("uploadPackage").disabled=true;try{await uploadOrderPackage();}catch(e){show("Không tải được ZIP: "+e.message,"error");}finally{$("uploadPackage").disabled=false;} });
 $("toQuote").addEventListener("click",()=>updateOrder("awaiting_payment"));
 $("toPaid").addEventListener("click",()=>updateOrder("paid"));
 $("toProcessing").addEventListener("click",()=>updateOrder("processing"));
