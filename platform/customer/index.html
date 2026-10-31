@@ -188,7 +188,7 @@ $("websiteDraftForm").addEventListener("submit",async e=>{
   const data=await api("/api/generate",{method:"POST",body:JSON.stringify({service_id:"website",brief:$("websiteBrief").value})});
   latestWebsiteConfig=data.generation.website_config;
   const cfg=latestWebsiteConfig;
-  summary.textContent=cfg.storeName+" · "+cfg.tagline+" · Màu chủ đạo "+cfg.primaryColor+" · Trang: "+(cfg.pages||[]).join(", ");
+  summary.textContent=cfg.storeName+" · "+cfg.tagline+" · Màu chủ đạo "+cfg.primaryColor+" · Trang: "+(cfg.pages||[]).join(", ")+(data.order?.id?" · Đã tạo đơn "+data.order.id+" (chờ quản trị viên xem xét).":"");
   $("websiteProducts").replaceChildren();
   (cfg.products||[]).forEach(p=>{
    const item=document.createElement("div");item.className="order";
@@ -198,7 +198,7 @@ $("websiteDraftForm").addEventListener("submit",async e=>{
    item.append(title,description,price);$("websiteProducts").append(item);
   });
   if(!(cfg.products||[]).length)$("websiteProducts").textContent="AI chưa đề xuất sản phẩm mẫu.";
-  summary.className="notice ok";await refreshQuota();
+  summary.className="notice ok";await Promise.all([refreshQuota(),refreshOrders()]);
  }catch(err){summary.className="notice error";summary.textContent="Chưa tạo được bản thiết kế: "+err.message;}
  finally{$("generateWebsite").disabled=false;}
 });
