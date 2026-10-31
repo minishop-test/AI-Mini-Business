@@ -29,13 +29,19 @@ function validEmail(value) {
   return typeof value === "string" && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function isAdmin(request, env) {
-  const expected = env.ADMIN_API_TOKEN || "";
-  const supplied = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!expected || supplied.length !== expected.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < expected.length; i++) mismatch |= expected.charCodeAt(i) ^ supplied.charCodeAt(i);
-  return mismatch === 0;
+async function hashSessionToken(token) {
+  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(token));
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function isAdmin(request, env) {
+  const token = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!/^[a-f0-9]{64}$/i.test(token)) return false;
+  const tokenHash = await hashSessionToken(token);
+  const session = await env.DB.prepare(
+    "SELECT token_hash FROM admin_sessions WHERE token_hash=? AND expires_at > CURRENT_TIMESTAMP"
+  ).bind(tokenHash).first();
+  return Boolean(session);
 }
 
 function id() { return crypto.randomUUID(); }
@@ -93,8 +99,31 @@ export default {
         return json({ ok: true, order: { id: orderId, total_vnd: total, status: "new" } }, 201, request, env);
       }
 
+      if (url.pathname === "/api/admin/login" && request.method === "POST") {
+        const data = await bodyJson(request, 1000);
+        const expected = env.ADMIN_API_TOKEN || "";
+        const supplied = typeof data?.token === "string" ? data.token : "";
+        if (!expected || !supplied || supplied.length > 256) return json({ error: "unauthorized" }, 401, request, env);
+        let mismatch = supplied.length ^ expected.length;
+        const length = Math.max(supplied.length, expected.length);
+        for (let i = 0; i < length; i++) mismatch |= (supplied.charCodeAt(i) || 0) ^ (expected.charCodeAt(i) || 0);
+        if (mismatch !== 0) return json({ error: "unauthorized" }, 401, request, env);
+        const sessionToken = [...crypto.getRandomValues(new Uint8Array(32))].map(byte => byte.toString(16).padStart(2, "0")).join("");
+        const tokenHash = await hashSessionToken(sessionToken);
+        await env.DB.prepare("INSERT INTO admin_sessions (token_hash, expires_at) VALUES (?, datetime('now','+30 minutes'))").bind(tokenHash).run();
+        return json({ ok: true, session_token: sessionToken, expires_in: 1800 }, 200, request, env);
+      }
+
+      if (url.pathname === "/api/admin/logout" && request.method === "POST") {
+        const token = (request.headers.get("Authorization") || "").replace(/^Bearer\\s+/i, "");
+        if (/^[a-f0-9]{64}$/i.test(token)) {
+          await env.DB.prepare("DELETE FROM admin_sessions WHERE token_hash=?").bind(await hashSessionToken(token)).run();
+        }
+        return json({ ok: true }, 200, request, env);
+      }
+
       if (url.pathname === "/api/admin/products" && request.method === "GET") {
-        if (!isAdmin(request, env)) return json({ error: "unauthorized" }, 401, request, env);
+        if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
         const rows = await env.DB.prepare(
           "SELECT id,name,description,price_vnd,image_url,active,created_at FROM products ORDER BY created_at DESC LIMIT 200"
         ).all();
