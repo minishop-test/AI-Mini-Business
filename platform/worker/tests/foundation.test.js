@@ -129,3 +129,17 @@ test("AI generation stores output server-side and customer UI renders it as text
   assert.match(customer, /api\("\/api\/generate"/);
   assert.match(customer, /result\.textContent=data\.generation\.text/);
 });
+
+test("admin overview reports live generation switch and daily budget usage", () => {
+  assert.match(api, /generation_enabled: controlMap\.ai_generation_enabled === "true"/);
+  assert.match(api, /daily_budget_units: Number\(controlMap\.daily_budget_units/);
+  assert.match(api, /today_usage: \{ requests:/);
+});
+
+test("admin dashboard exposes AI switch and daily budget controls", () => {
+  assert.match(admin, /id="generationBtn"/);
+  assert.match(admin, /id="saveBudget"/);
+  assert.match(admin, /\/api\/admin\/ai-generation/);
+  assert.match(admin, /\/api\/admin\/budget/);
+  assert.match(admin, /today_usage/);
+});
