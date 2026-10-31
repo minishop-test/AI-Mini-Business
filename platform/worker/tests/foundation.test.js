@@ -220,7 +220,7 @@ test("customer site has a real admin dashboard for products and orders", () => {
   assert.match(customerSiteApi, /SELECT id,name,description,price_vnd,image_url,active,created_at FROM products/);
   assert.match(customerSiteApi, /PATCH/);
   assert.match(customerSiteApi, /invalid_product_status/);
-  assert.match(customerSiteApi, /UPDATE products SET active/);
+  assert.match(customerSiteApi, /UPDATE products SET name=\\?,description=\\?,price_vnd=\\?,image_url=\\?,active=\\?/);
 });
 
 test("customer admin dashboard uses session-only token and safe DOM text rendering", () => {
@@ -354,7 +354,7 @@ test("customer storefront records admin mutations and exposes a protected read-o
   assert.match(customerSiteApi, /async function writeAudit/);
   assert.match(customerSiteApi, /INSERT INTO admin_audit_log/);
   assert.match(customerSiteApi, /product\.created/);
-  assert.match(customerSiteApi, /product\.activated/);
+  assert.ok(customerSiteApi.includes('data.active ? "product.activated" : "product.hidden"'));
   assert.match(customerSiteApi, /product\.hidden/);
   assert.match(customerSiteApi, /order\.status_changed/);
   assert.match(customerSiteApi, /api\/admin\/audit-log/);
