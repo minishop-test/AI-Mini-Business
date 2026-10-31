@@ -12,6 +12,15 @@
 ## Điều kiện trước khi triển khai
 Khách hàng cần có tài khoản Cloudflare, Node.js và npm. Website này cần một Worker, một D1 database và một Pages site (hoặc static hosting tương đương). Có thể phát sinh chi phí nếu vượt hạn mức miễn phí của nhà cung cấp.
 
+## Đóng gói ZIP
+Từ thư mục `platform/customer-site`, chạy `npm install` rồi `npm run build:zip`. Mặc định, ZIP được tạo tại `dist/customer-store.zip`. Có thể truyền cấu hình khi đóng gói:
+
+\`\`\`bash
+node tools/build-zip.mjs --api-url https://YOUR-WORKER.workers.dev --pages-origin https://YOUR-STORE.pages.dev --output ./dist/customer-store.zip
+\`\`\`
+
+Bộ đóng gói bao gồm mã nguồn Worker, schema D1, cấu hình Wrangler, storefront, trang quản trị và README. Nó không chứa `ADMIN_API_TOKEN`, API key hoặc dữ liệu khách hàng. Đây là ZIP mã nguồn để khách hàng tự triển khai, không phải website đã được host sẵn. Sau khi giải nén, khách hàng vẫn phải tạo D1 database, cập nhật database ID, đặt secret, triển khai Worker và tải thư mục `site` lên Pages theo hướng dẫn bên dưới.
+
 ## Chạy và triển khai
 1. Tạo D1 database: `npx wrangler d1 create customer-store-db`.
 2. Điền database ID vào `wrangler.toml`.
