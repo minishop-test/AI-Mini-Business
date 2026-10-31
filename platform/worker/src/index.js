@@ -168,6 +168,7 @@ async function getQuotaSnapshot(db, userId) {
   const day = new Date().toISOString().slice(0, 10);
   const rows = await db.prepare(
     "SELECT s.service_id, s.enabled, s.registered_free_uses, s.max_input_chars, s.max_output_tokens, " +
+    "s.estimated_cost_units_per_use, s.daily_request_limit, " +
     "(SELECT COUNT(*) FROM usage_events u WHERE u.user_id = ? AND u.service_id = s.service_id AND u.status IN ('reserved','completed') ) AS used " +
     "FROM service_settings s ORDER BY s.service_id"
   ).bind(userId).all();
@@ -192,6 +193,8 @@ async function getQuotaSnapshot(db, userId) {
       remaining: Math.max(0, Number(x.registered_free_uses) - Number(x.used)),
       max_input_chars: Number(x.max_input_chars),
       max_output_tokens: Number(x.max_output_tokens),
+      estimated_cost_units_per_use: Number(x.estimated_cost_units_per_use),
+      daily_request_limit: Number(x.daily_request_limit),
     })),
   };
 }
@@ -201,7 +204,7 @@ async function adminOverview(db) {
     db.prepare("SELECT COUNT(*) AS total FROM users").first(),
     db.prepare("SELECT status, COUNT(*) AS total FROM orders GROUP BY status").all(),
     db.prepare("SELECT status, COUNT(*) AS total FROM usage_events GROUP BY status").all(),
-    db.prepare("SELECT service_id, enabled, guest_free_uses, registered_free_uses, max_input_chars, max_output_tokens FROM service_settings ORDER BY service_id").all(),
+    db.prepare("SELECT service_id, enabled, guest_free_uses, registered_free_uses, max_input_chars, max_output_tokens, estimated_cost_units_per_use, daily_request_limit FROM service_settings ORDER BY service_id").all(),
     db.prepare("SELECT control_value FROM platform_controls WHERE control_key = 'global_ai_pause'").first(),
   ]);
   return {
@@ -465,7 +468,7 @@ export default {
         if (!allowedIds.includes(serviceId)) return json({ error: "invalid_service" }, 400, env, request);
 
         const settings = await env.DB.prepare(
-          "SELECT enabled, registered_free_uses, max_input_chars FROM service_settings WHERE service_id = ?"
+          "SELECT enabled, registered_free_uses, max_input_chars, estimated_cost_units_per_use, daily_request_limit FROM service_settings WHERE service_id = ?"
         ).bind(serviceId).first();
         if (!settings || !settings.enabled) return json({ error: "service_unavailable" }, 403, env, request);
         const pause = await env.DB.prepare(
@@ -481,7 +484,7 @@ export default {
         const reservationId = crypto.randomUUID();
         const eventId = crypto.randomUUID();
         const day = new Date().toISOString().slice(0, 10);
-        const fixedCostUnits = 1000;
+        const fixedCostUnits = Math.max(1, Number(settings.estimated_cost_units_per_use || 1000));
         const reservationResults = await env.DB.batch([
           env.DB.prepare(
             "INSERT INTO usage_events (id, user_id, service_id, status, units, estimated_cost_units) " +
@@ -489,9 +492,10 @@ export default {
             "WHERE (SELECT COUNT(*) FROM usage_events WHERE user_id = ? AND service_id = ? AND status IN ('reserved','completed')) < ? " +
             "AND (SELECT COALESCE(SUM(estimated_cost_units),0) FROM usage_events WHERE created_at >= ? AND status IN ('reserved','completed')) + ? <= " +
             "CAST(COALESCE((SELECT control_value FROM platform_controls WHERE control_key = 'daily_budget_units'), '0') AS INTEGER) " +
+            "AND (SELECT COUNT(*) FROM usage_events WHERE service_id = ? AND created_at >= ? AND status IN ('reserved','completed')) < ? " +
             "AND (SELECT control_value FROM platform_controls WHERE control_key = 'global_ai_pause') = 'false' " +
             "AND (SELECT enabled FROM service_settings WHERE service_id = ?) = 1"
-          ).bind(eventId, user.id, serviceId, fixedCostUnits, user.id, serviceId, Number(settings.registered_free_uses), day + " 00:00:00", fixedCostUnits, serviceId),
+          ).bind(eventId, user.id, serviceId, fixedCostUnits, user.id, serviceId, Number(settings.registered_free_uses), day + " 00:00:00", fixedCostUnits, serviceId, day + " 00:00:00", Number(settings.daily_request_limit), serviceId),
           env.DB.prepare(
             "INSERT INTO quota_reservations (id, usage_event_id, user_id, service_id, reserved_units, reservation_date_utc, status) " +
             "SELECT ?, ?, ?, ?, 1, ?, 'reserved' WHERE EXISTS (SELECT 1 FROM usage_events WHERE id = ? AND status = 'reserved')"
