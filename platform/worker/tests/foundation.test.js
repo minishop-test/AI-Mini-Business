@@ -121,7 +121,7 @@ test("Workers AI generation is guarded by a default-off database kill switch", (
 
 test("AI generation only allows business-content and caps output tokens", () => {
   assert.match(api, /!\["business-content", "website"\]\.includes\(serviceId\)/);
-  assert.match(api, /max_tokens: 512/);
+  assert.match(api, /max_tokens: isWebsite \\? 900 : 512/);
   assert.match(api, /@cf\/meta\/llama-3\.2-1b-instruct/);
 });
 
