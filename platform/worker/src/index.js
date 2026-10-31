@@ -523,6 +523,9 @@ export default {
       const user = await currentUser(request, env.DB);
       if (!user) return json({ error: "not_authenticated" }, 401, env, request);
       if (user.role !== "admin") return json({ error: "forbidden" }, 403, env, request);
+      if (request.method !== "GET" && !(await rateLimit(env.DB, request, "admin-write", user.id, 30, 60))) {
+        return json({ error: "rate_limited", message: "Quá nhiều thao tác quản trị. Vui lòng thử lại sau một phút." }, 429, env, request, { "retry-after": "60" });
+      }
 
       if (url.pathname === "/api/admin/customers" && request.method === "GET") {
         const rows = await env.DB.prepare(
@@ -648,14 +651,17 @@ export default {
           return json({ error: "reservation_not_found_or_closed" }, 404, env, request);
         }
         const nextStatus = body.action === "complete" ? "completed" : "refunded";
-        await env.DB.batch([
+        const settlement = await env.DB.batch([
           env.DB.prepare(
             "UPDATE quota_reservations SET status = ?, settled_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'reserved'"
           ).bind(body.action === "complete" ? "settled" : "released", reservation.id),
           env.DB.prepare(
-            "UPDATE usage_events SET status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'reserved'"
-          ).bind(nextStatus, reservation.usage_event_id),
+            "UPDATE usage_events SET status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'reserved' AND EXISTS (SELECT 1 FROM quota_reservations WHERE id = ? AND status = ?)"
+          ).bind(nextStatus, reservation.usage_event_id, reservation.id, body.action === "complete" ? "settled" : "released"),
         ]);
+        if (!settlement[0]?.meta?.changes || !settlement[1]?.meta?.changes) {
+          return json({ error: "reservation_changed_retry" }, 409, env, request);
+        }
         await audit(env.DB, user.id, "quota_reservation_" + body.action, reservation.id, {});
         return json({ ok: true, reservation_id: reservation.id, status: nextStatus }, 200, env, request);
       }
