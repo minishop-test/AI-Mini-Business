@@ -21,6 +21,7 @@
 <section class="card"><h2>Tình trạng</h2><p id="summary" class="muted">Đang tải...</p><button class="secondary" id="refresh">Làm mới dữ liệu</button><button class="danger" id="logout">Đăng xuất</button></section>
 </div>
 <section class="card"><h2>Sản phẩm</h2><div class="scroll"><table><thead><tr><th>Tên</th><th>Giá</th><th>Hiển thị</th><th>Thao tác</th></tr></thead><tbody id="products"><tr><td colspan="4">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
+<section class="card"><h2>Nhật ký hoạt động</h2><p class="muted">100 thao tác quản trị gần nhất.</p><div class="scroll"><table><thead><tr><th>Thời gian</th><th>Hành động</th><th>Đối tượng</th><th>Chi tiết</th></tr></thead><tbody id="auditLog"><tr><td colspan="4">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
 <section class="card"><h2>Đơn hàng</h2><div class="scroll"><table><thead><tr><th>Thời gian</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead><tbody id="orders"><tr><td colspan="6">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
 </div>
 <div id="message" class="notice hidden" role="status"></div>
@@ -33,7 +34,7 @@ const money=n=>Number(n).toLocaleString("vi-VN")+" ₫";
 function notify(message,error=false){$("message").textContent=message;$("message").classList.remove("hidden","error");if(error)$("message").classList.add("error");}
 async function api(path,options={}){const response=await fetch(API_BASE+path,{...options,headers:{"content-type":"application/json","authorization":"Bearer "+adminToken,...options.headers}});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||"Yêu cầu thất bại ("+response.status+")");return data;}
 async function loadAll(){
- const [products,orders]=await Promise.all([api("/api/admin/products"),api("/api/admin/orders")]);
+ const [products,orders,audit]=await Promise.all([api("/api/admin/products"),api("/api/admin/orders"),api("/api/admin/audit-log")]);
  $("products").replaceChildren();(products.products||[]).forEach(p=>{
   const tr=document.createElement("tr");for(const value of [p.name,money(p.price_vnd),p.active?"Đang hiển thị":"Đã ẩn"]){const td=document.createElement("td");td.textContent=value;tr.append(td);}
   const td=document.createElement("td"),btn=document.createElement("button");btn.className=p.active?"danger":"secondary";btn.textContent=p.active?"Ẩn sản phẩm":"Hiện sản phẩm";btn.addEventListener("click",async()=>{btn.disabled=true;try{await api("/api/admin/products/"+p.id,{method:"PATCH",body:JSON.stringify({active:!p.active})});await loadAll();notify("Đã cập nhật sản phẩm.");}catch(e){notify(e.message,true);}finally{btn.disabled=false;}});td.append(btn);tr.append(td);$("products").append(tr);
@@ -47,6 +48,13 @@ async function loadAll(){
   const actionTd=document.createElement("td"),save=document.createElement("button");save.textContent="Lưu";save.addEventListener("click",async()=>{save.disabled=true;try{await api("/api/admin/orders/"+o.id,{method:"PATCH",body:JSON.stringify({status:select.value})});notify("Đã cập nhật đơn hàng.");}catch(e){notify(e.message,true);}finally{save.disabled=false;}});actionTd.append(save);tr.append(actionTd);$("orders").append(tr);
  });
  if(!(orders.orders||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=6;td.textContent="Chưa có đơn hàng.";tr.append(td);$("orders").append(tr);}
+ $("auditLog").replaceChildren();(audit.entries||[]).forEach(entry=>{
+  const tr=document.createElement("tr");
+  const detail=(()=>{try{return JSON.stringify(JSON.parse(entry.details_json||"{}"));}catch{return "—";}})();
+  for(const value of [entry.created_at,entry.action,entry.entity_type+" · "+entry.entity_id,detail]){const td=document.createElement("td");td.textContent=value;tr.append(td);}
+  $("auditLog").append(tr);
+ });
+ if(!(audit.entries||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=4;td.textContent="Chưa có hoạt động được ghi nhận.";tr.append(td);$("auditLog").append(tr);}
  $("summary").textContent=(products.products||[]).length+" sản phẩm · "+(orders.orders||[]).length+" đơn hàng (tối đa 200 đơn gần nhất).";
 }
 $("connect").addEventListener("click",async()=>{
