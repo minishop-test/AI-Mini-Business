@@ -1,0 +1,31 @@
+name: Worker foundation checks
+
+on:
+  push:
+    branches:
+      - main
+      - feature/ai-platform-foundation
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  worker-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform/worker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check Worker syntax
+        run: npm run check
+      - name: Run foundation tests
+        run: npm test
