@@ -331,9 +331,9 @@ test("customer storefront admin uses expiring hashed sessions and deployment sch
   assert.match(customerSiteApi, /api\/admin\/logout/);
   assert.match(customerSiteApi, /DELETE FROM admin_sessions/);
   assert.match(customerSiteApi, /await isAdmin\(request, env\)/);
-  assert.match(customerSiteAdmin, /api\/admin\/login/);
-  assert.match(customerSiteAdmin, /expires_in/);
-  assert.match(customerSiteAdmin, /api\/admin\/logout/);
+  assert.match(customerAdmin, /api\/admin\/login/);
+  assert.match(customerAdmin, /expires_in/);
+  assert.match(customerAdmin, /api\/admin\/logout/);
   assert.match(customerSiteSchema, /CREATE TABLE IF NOT EXISTS admin_sessions/);
   assert.match(customerSiteReadme, /phiên đăng nhập ngắn hạn/);
   assert.match(customerSiteReadme, /0002_admin_sessions\.sql/);
