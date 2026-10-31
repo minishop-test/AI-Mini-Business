@@ -6,6 +6,8 @@ workers_dev = true
 [vars]
 # Set this to the exact origin of the deployed website, e.g. https://your-domain.pages.dev
 ALLOWED_ORIGIN = "https://REPLACE-WITH-YOUR-SITE.pages.dev"
+PUBLIC_SITE_URL = "https://REPLACE-WITH-YOUR-SITE.pages.dev"
+EMAIL_FROM = "AI Mini Business <no-reply@REPLACE-WITH-VERIFIED-DOMAIN>"
 
 [[d1_databases]]
 binding = "DB"
