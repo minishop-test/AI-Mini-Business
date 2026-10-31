@@ -611,6 +611,16 @@ export default {
         return json(await adminOverview(env.DB), 200, env, request);
       }
 
+      if (url.pathname === "/api/admin/ai-generation" && request.method === "POST") {
+        const body = await readJson(request);
+        if (typeof body?.enabled !== "boolean") return json({ error: "invalid_input" }, 400, env, request);
+        await env.DB.prepare(
+          "INSERT INTO platform_controls (control_key,control_value,updated_at) VALUES ('ai_generation_enabled',?,CURRENT_TIMESTAMP) ON CONFLICT(control_key) DO UPDATE SET control_value=excluded.control_value,updated_at=CURRENT_TIMESTAMP"
+        ).bind(body.enabled ? "true" : "false").run();
+        await audit(env.DB,user.id,"ai_generation_switch_changed",null,{enabled:body.enabled});
+        return json({ ok:true,enabled:body.enabled },200,env,request);
+      }
+
       if (url.pathname === "/api/admin/budget" && request.method === "POST") {
         const body = await readJson(request);
         if (!Number.isSafeInteger(body?.daily_budget_units) || body.daily_budget_units < 0 || body.daily_budget_units > 100000000) {
@@ -699,7 +709,90 @@ export default {
     }
 
     if (url.pathname === "/api/generate" && request.method === "POST") {
-      return json({ error: "generation_disabled", message: "AI generation is not enabled yet." }, 503, env, request);
+      if (!env.DB) return json({ error: "database_not_configured" }, 503, env, request);
+      if (!env.AI) return json({ error: "ai_binding_not_configured" }, 503, env, request);
+      if (!requireTrustedOrigin(request, env)) return json({ error: "untrusted_origin" }, 403, env, request);
+      const user = await currentUser(request, env.DB);
+      if (!user) return json({ error: "not_authenticated" }, 401, env, request);
+      if (!(await rateLimit(env.DB, request, "ai-generation", user.id, 3, 3600))) {
+        return json({ error: "rate_limited", message: "Bạn đã sử dụng hết lượt thử trong giờ này. Vui lòng thử lại sau." }, 429, env, request, { "retry-after": "3600" });
+      }
+
+      const body = await readJson(request);
+      const serviceId = body?.service_id;
+      const brief = typeof body?.brief === "string" ? body.brief.trim() : "";
+      if (serviceId !== "business-content") {
+        return json({ error: "service_not_ready", message: "Hiện chỉ thử nghiệm dịch vụ nội dung kinh doanh." }, 400, env, request);
+      }
+      if (brief.length < 10 || brief.length > 4000) {
+        return json({ error: "invalid_brief", message: "Mô tả cần từ 10 đến 4.000 ký tự." }, 400, env, request);
+      }
+
+      const controls = await env.DB.prepare(
+        "SELECT control_key, control_value FROM platform_controls WHERE control_key IN ('global_ai_pause','ai_generation_enabled','daily_budget_units')"
+      ).all();
+      const controlMap = Object.fromEntries((controls.results || []).map(x => [x.control_key, x.control_value]));
+      if (controlMap.global_ai_pause !== "false" || controlMap.ai_generation_enabled !== "true") {
+        return json({ error: "generation_disabled", message: "Tạo nội dung AI hiện đang tắt. Quản trị viên cần bật chế độ thử nghiệm." }, 503, env, request);
+      }
+
+      const settings = await env.DB.prepare(
+        "SELECT enabled, registered_free_uses, max_input_chars, estimated_cost_units_per_use, daily_request_limit FROM service_settings WHERE service_id = ?"
+      ).bind(serviceId).first();
+      if (!settings?.enabled) return json({ error: "service_unavailable" }, 403, env, request);
+      if (brief.length > Number(settings.max_input_chars)) {
+        return json({ error: "brief_too_long", max_input_chars: Number(settings.max_input_chars) }, 400, env, request);
+      }
+
+      const day = new Date().toISOString().slice(0, 10);
+      const eventId = crypto.randomUUID();
+      const reservationId = crypto.randomUUID();
+      const costUnits = Math.max(1, Number(settings.estimated_cost_units_per_use || 700));
+      const reserve = await env.DB.batch([
+        env.DB.prepare(
+          "INSERT INTO usage_events (id,user_id,service_id,status,units,provider,model,estimated_cost_units) " +
+          "SELECT ?,?,?,'reserved',1,'cloudflare-workers-ai','@cf/meta/llama-3.2-1b-instruct',? " +
+          "WHERE (SELECT COUNT(*) FROM usage_events WHERE user_id=? AND service_id=? AND status IN ('reserved','completed')) < ? " +
+          "AND (SELECT COALESCE(SUM(estimated_cost_units),0) FROM usage_events WHERE created_at >= ? AND status IN ('reserved','completed')) + ? <= CAST(COALESCE((SELECT control_value FROM platform_controls WHERE control_key='daily_budget_units'),'0') AS INTEGER) " +
+          "AND (SELECT COUNT(*) FROM usage_events WHERE service_id=? AND created_at >= ? AND status IN ('reserved','completed')) < ? " +
+          "AND (SELECT control_value FROM platform_controls WHERE control_key='global_ai_pause')='false' " +
+          "AND (SELECT control_value FROM platform_controls WHERE control_key='ai_generation_enabled')='true' " +
+          "AND (SELECT enabled FROM service_settings WHERE service_id=?)=1"
+        ).bind(eventId,user.id,serviceId,costUnits,user.id,serviceId,Number(settings.registered_free_uses),day+" 00:00:00",costUnits,serviceId,day+" 00:00:00",Number(settings.daily_request_limit),serviceId),
+        env.DB.prepare(
+          "INSERT INTO quota_reservations (id,usage_event_id,user_id,service_id,reserved_units,reservation_date_utc,status) " +
+          "SELECT ?,?,?,?,1,?,'reserved' WHERE EXISTS (SELECT 1 FROM usage_events WHERE id=? AND status='reserved')"
+        ).bind(reservationId,eventId,user.id,serviceId,day,eventId),
+      ]);
+      if (!reserve[0]?.meta?.changes || !reserve[1]?.meta?.changes) {
+        return json({ error: "quota_or_budget_exhausted", message: "Đã hết lượt miễn phí hoặc ngân sách AI trong ngày." }, 429, env, request);
+      }
+
+      try {
+        const result = await env.AI.run("@cf/meta/llama-3.2-1b-instruct", {
+          messages: [
+            { role: "system", content: "Bạn là trợ lý nội dung kinh doanh bằng tiếng Việt. Hãy tạo nội dung hữu ích, rõ ràng, thực tế, không bịa số liệu, không cam kết kết quả kinh doanh. Nếu thiếu dữ liệu, hãy ghi rõ giả định. Trả lời bằng tiếng Việt." },
+            { role: "user", content: "Hãy tạo nội dung theo yêu cầu sau. Trình bày có tiêu đề và các mục rõ ràng. Yêu cầu: " + brief },
+          ],
+          max_tokens: 512,
+          temperature: 0.5,
+        });
+        const output = typeof result?.response === "string" ? result.response.trim() : "";
+        if (!output) throw new Error("empty_model_response");
+        await env.DB.batch([
+          env.DB.prepare("UPDATE usage_events SET status='completed', completed_at=CURRENT_TIMESTAMP WHERE id=? AND status='reserved'").bind(eventId),
+          env.DB.prepare("UPDATE quota_reservations SET status='settled', settled_at=CURRENT_TIMESTAMP WHERE id=? AND status='reserved'").bind(reservationId),
+          env.DB.prepare("INSERT INTO ai_generations (id,user_id,usage_event_id,service_id,input_brief,output_text,provider,model) VALUES (?,?,?,?,?,?,?,?)")
+            .bind(crypto.randomUUID(),user.id,eventId,serviceId,brief,output,"cloudflare-workers-ai","@cf/meta/llama-3.2-1b-instruct"),
+        ]);
+        return json({ ok: true, generation: { text: output, service_id: serviceId, model: "@cf/meta/llama-3.2-1b-instruct" }, quota: await getQuotaSnapshot(env.DB,user.id) }, 200, env, request);
+      } catch (error) {
+        await env.DB.batch([
+          env.DB.prepare("UPDATE usage_events SET status='failed', completed_at=CURRENT_TIMESTAMP WHERE id=? AND status='reserved'").bind(eventId),
+          env.DB.prepare("UPDATE quota_reservations SET status='released', settled_at=CURRENT_TIMESTAMP WHERE id=? AND status='reserved'").bind(reservationId),
+        ]);
+        return json({ error: "generation_failed", message: "AI chưa tạo được nội dung. Lượt miễn phí đã được hoàn lại nếu tác vụ thất bại." }, 502, env, request);
+      }
     }
 
     return json({ error: "not_found" }, 404, env, request);
