@@ -275,6 +275,13 @@ test("generated customer ZIP applies the selected visual design and safely escap
   assert.match(api, /primaryColor/);
 });
 
+test("website orders cannot be marked delivered until a private ZIP exists", () => {
+  assert.match(api, /website_package_required/);
+  assert.match(api, /deliveryCheck\?\.service_id === "website" && !deliveryCheck\.package_key/);
+  assert.match(api, /order\.status !== "delivered" \|\| !order\.package_key/);
+  assert.match(api, /package_storage_not_configured/);
+});
+
 test("admin can generate a personalized website ZIP directly from a paid website order", () => {
   assert.match(api, /import \{ zipSync, strToU8 \} from "fflate"/);
   assert.match(api, /CUSTOMER_SITE_FILES/);
