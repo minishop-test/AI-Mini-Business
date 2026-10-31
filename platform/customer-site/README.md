@@ -19,17 +19,17 @@ Từ thư mục `platform/customer-site`, chạy `npm install` rồi `npm run bu
 node tools/build-zip.mjs --config ./store.json --api-url https://YOUR-WORKER.workers.dev --pages-origin https://YOUR-STORE.pages.dev --output ./dist/customer-store.zip
 \`\`\`
 
-Bộ đóng gói bao gồm mã nguồn Worker, schema D1, cấu hình Wrangler, storefront, trang quản trị và README. Nó không chứa `ADMIN_API_TOKEN`, API key hoặc dữ liệu khách hàng. Đây là ZIP mã nguồn để khách hàng tự triển khai, không phải website đã được host sẵn. Sau khi giải nén, khách hàng vẫn phải tạo D1 database, cập nhật database ID, đặt secret, triển khai Worker và tải thư mục `site` lên Pages theo hướng dẫn bên dưới.
+Bộ đóng gói bao gồm mã nguồn Worker, schema D1, cấu hình Wrangler, storefront, trang quản trị và README. Nó không chứa `ADMIN_API_TOKEN`, API key hoặc dữ liệu khách hàng. Đây là ZIP mã nguồn để khách hàng tự triển khai, không phải website đã được host sẵn. Sau khi giải nén, khách hàng vẫn phải tạo D1 database, cập nhật database ID, tạo bucket R2 riêng tư, đặt secret, triển khai Worker và tải thư mục `site` lên Pages theo hướng dẫn bên dưới. ZIP bao gồm các migration SQL từ 0002 đến 0005 để nâng cấp database đã có; database mới dùng `schema.sql`.
 
 ## Chạy và triển khai
 1. Tạo D1 database: `npx wrangler d1 create customer-store-db`.
 2. Điền database ID vào `wrangler.toml`.
-3. Áp dụng schema: `npx wrangler d1 execute customer-store-db --remote --file=./schema.sql`.
-4. Cài công cụ: `npm install`.
-5. Đặt secret quản trị: `npx wrangler secret put ADMIN_API_TOKEN` (tạo token dài, ngẫu nhiên; không dùng mật khẩu dễ đoán).
-6. Cấu hình `ALLOWED_ORIGIN` trong `wrangler.toml` thành origin chính xác của trang Pages, không có dấu / cuối.
-7. Triển khai API: `npm run deploy`.
-8. Mở `site/index.html`, thay `API_BASE` bằng URL Worker đã triển khai và tải thư mục `site` lên Cloudflare Pages.
+3. Áp dụng schema: `npx wrangler d1 execute customer-store-db --remote --file=./schema.sql`.\n4. Tạo kho file riêng tư: `npx wrangler r2 bucket create customer-store-private-deliveries`. Không bật public access cho bucket này.
+5. Cài công cụ: `npm install`.
+6. Đặt secret quản trị: `npx wrangler secret put ADMIN_API_TOKEN` (tạo token dài, ngẫu nhiên; không dùng mật khẩu dễ đoán).
+7. Cấu hình `ALLOWED_ORIGIN` trong `wrangler.toml` thành origin chính xác của trang Pages, không có dấu / cuối.
+8. Triển khai API: `npm run deploy`.
+9. Mở `site/index.html`, thay `API_BASE` bằng URL Worker đã triển khai và tải thư mục `site` lên Cloudflare Pages.
 
 ## Quản trị
 
@@ -93,7 +93,7 @@ Chạy lệnh có `--config ./store.json`. Tên cửa hàng, câu giới thiệu
 \n\n## Thanh toán và bàn giao đơn hàng\n\nTrang quản trị tách riêng trạng thái thanh toán (chưa thanh toán / đã thanh toán / đã hoàn tiền) và bàn giao (chưa bàn giao / đã bàn giao). Backend từ chối đánh dấu đã bàn giao nếu đơn chưa được xác nhận đã thanh toán. Việc xác nhận tiền vẫn phải dựa trên giao dịch thực tế.\n\nDatabase mới có hai cột payment_status và delivery_status trong schema.sql. Với database đã tạo trước đó, áp dụng migration 0004_payment_delivery.sql trước khi triển khai backend mới.\n\nLưu ý: quản trị viên vẫn phải xác nhận giao dịch thực tế và thao tác thủ công trên dashboard. Sau khi upload file riêng tư lên R2, trạng thái bàn giao chỉ được lưu nếu đơn đã thanh toán và có file; link tải một lần sẽ được cấp từ dashboard sau khi cả hai trạng thái hợp lệ.\n
  
 ## File bàn giao riêng tư (R2)
-Tạo bucket riêng: `npx wrangler r2 bucket create customer-store-private-deliveries`. Worker dùng binding `DELIVERIES` trong wrangler.toml; bucket không bật public access. Áp dụng migration `0005_private_deliveries.sql` cho database cũ; database mới chạy schema.sql.
+Tạo bucket riêng: `npx wrangler r2 bucket create customer-store-private-deliveries`. Worker dùng binding `DELIVERIES` trong wrangler.toml; bucket không bật public access. Database mới chạy toàn bộ `schema.sql`. Database cũ cần lần lượt áp dụng các migration còn thiếu theo thứ tự 0002, 0003, 0004, 0005; không chạy lại migration đã áp dụng.
 
 Quản trị viên gửi file dạng multipart/form-data với field `file` đến `POST /api/admin/orders/:id/delivery-file`. Cho phép PDF, TXT, ZIP, DOCX, PNG và JPG; giới hạn 20 MiB. File lưu trong R2, không tạo URL công khai. Sau khi đã xác nhận thanh toán và đánh dấu bàn giao, quản trị viên gọi `POST /api/admin/orders/:id/delivery-link`. Link tải có hạn 24 giờ và chỉ dùng một lần. Endpoint tải kiểm tra lại trạng thái đơn, rồi đọc object từ bucket riêng tư.
 
