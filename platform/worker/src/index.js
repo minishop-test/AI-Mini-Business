@@ -108,6 +108,35 @@ async function rateLimit(db, request, scope, identity, limit, windowSeconds) {
   return Number(result?.hits || 0) <= limit;
 }
 
+async function createEmailActionToken(db, userId, purpose, lifetimeMinutes) {
+  const token = randomToken(32);
+  const tokenHash = await sha256(token);
+  const id = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + lifetimeMinutes * 60000).toISOString();
+  await db.batch([
+    db.prepare("UPDATE email_action_tokens SET used_at = CURRENT_TIMESTAMP WHERE user_id = ? AND purpose = ? AND used_at IS NULL").bind(userId, purpose),
+    db.prepare("INSERT INTO email_action_tokens (id, user_id, token_hash, purpose, expires_at) VALUES (?, ?, ?, ?, ?)").bind(id, userId, tokenHash, purpose, expiresAt),
+  ]);
+  return token;
+}
+
+async function sendActionEmail(env, recipient, subject, actionUrl, intro) {
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) {
+    throw new Error("email_provider_not_configured");
+  }
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "authorization": "Bearer " + env.RESEND_API_KEY, "content-type": "application/json" },
+    body: JSON.stringify({
+      from: env.EMAIL_FROM,
+      to: [recipient],
+      subject,
+      text: intro + "\\n\\n" + actionUrl + "\\n\\nNếu bạn không thực hiện yêu cầu này, hãy bỏ qua email.",
+    }),
+  });
+  if (!response.ok) throw new Error("email_delivery_failed");
+}
+
 async function createSession(db, userId) {
   const token = randomToken();
   const tokenHash = await sha256(token);
@@ -231,10 +260,6 @@ export default {
         if (!validEmail(email) || typeof password !== "string" || password.length < 12 || password.length > 128) {
           return json({ error: "invalid_input", message: "Email không hợp lệ; mật khẩu cần từ 12 đến 128 ký tự." }, 400, env, request);
         }
-
-        const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ? LIMIT 1").bind(email).first();
-        if (existing) return json({ error: "account_exists" }, 409, env, request);
-
         const salt = crypto.getRandomValues(new Uint8Array(16));
         const passwordHash = await hashPassword(password, salt);
         const userId = crypto.randomUUID();
@@ -243,12 +268,17 @@ export default {
             "INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'customer')"
           ).bind(userId, email, `pbkdf2-sha256$${PBKDF2_ITERATIONS}$${bytesToBase64(salt)}$${passwordHash}`).run();
         } catch {
-          return json({ error: "registration_failed" }, 400, env, request);
+          return json({ error: "account_exists_or_registration_failed" }, 409, env, request);
         }
-        const token = await createSession(env.DB, userId);
-        return json({ ok: true, user: { id: userId, email, role: "customer" } }, 201, env, request, {
-          "set-cookie": sessionCookie(token, SESSION_DAYS * 86400),
-        });
+        try {
+          const token = await createEmailActionToken(env.DB, userId, "verify_email", 60);
+          const verifyUrl = new URL("/platform/customer/", env.PUBLIC_SITE_URL || env.ALLOWED_ORIGIN);
+          verifyUrl.searchParams.set("verify", token);
+          await sendActionEmail(env, email, "Xác minh email – AI Mini Business", verifyUrl.toString(), "Nhấn vào liên kết sau để xác minh email. Liên kết có hiệu lực trong 60 phút.");
+        } catch {
+          return json({ ok: true, verification_required: true, email_delivery_pending: true, message: "Tài khoản đã tạo. Chưa gửi được email xác minh; hãy dùng chức năng gửi lại email sau khi quản trị viên cấu hình dịch vụ email." }, 201, env, request);
+        }
+        return json({ ok: true, verification_required: true, message: "Tài khoản đã tạo. Vui lòng mở email để xác minh trước khi đăng nhập." }, 201, env, request);
       }
 
       if (url.pathname === "/api/auth/login" && request.method === "POST") {
@@ -273,11 +303,89 @@ export default {
           matches = constantTimeEqual(calculated, parts[3]);
         } catch { matches = false; }
         if (!matches) return json({ error: "invalid_credentials" }, 401, env, request);
+        const verified = await env.DB.prepare("SELECT email_verified_at FROM users WHERE id = ?").bind(user.id).first();
+        if (!verified?.email_verified_at) return json({ error: "email_not_verified", message: "Hãy xác minh email trước khi đăng nhập." }, 403, env, request);
 
         const token = await createSession(env.DB, user.id);
         return json({ ok: true, user: { id: user.id, email: user.email, role: user.role } }, 200, env, request, {
           "set-cookie": sessionCookie(token, SESSION_DAYS * 86400),
         });
+      }
+
+      if (url.pathname === "/api/auth/verify-email" && request.method === "POST") {
+        const body = await readJson(request);
+        if (typeof body?.token !== "string" || body.token.length < 20 || body.token.length > 200) {
+          return json({ error: "invalid_or_expired_token" }, 400, env, request);
+        }
+        const tokenHash = await sha256(body.token);
+        const action = await env.DB.prepare(
+          "SELECT id, user_id FROM email_action_tokens WHERE token_hash = ? AND purpose = 'verify_email' AND used_at IS NULL AND expires_at > ? LIMIT 1"
+        ).bind(tokenHash, new Date().toISOString()).first();
+        if (!action) return json({ error: "invalid_or_expired_token" }, 400, env, request);
+        const result = await env.DB.batch([
+          env.DB.prepare("UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE id = ? AND email_verified_at IS NULL").bind(action.user_id),
+          env.DB.prepare("UPDATE email_action_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ? AND used_at IS NULL").bind(action.id),
+        ]);
+        if (!result[1]?.meta?.changes) return json({ error: "token_already_used" }, 409, env, request);
+        return json({ ok: true, message: "Email đã được xác minh. Bạn có thể đăng nhập." }, 200, env, request);
+      }
+
+      if (url.pathname === "/api/auth/resend-verification" && request.method === "POST") {
+        const body = await readJson(request);
+        const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+        if (!validEmail(email)) return json({ error: "invalid_input" }, 400, env, request);
+        const user = await env.DB.prepare("SELECT id, email, email_verified_at FROM users WHERE email = ? LIMIT 1").bind(email).first();
+        if (user && !user.email_verified_at) {
+          try {
+            const token = await createEmailActionToken(env.DB, user.id, "verify_email", 60);
+            const verifyUrl = new URL("/platform/customer/", env.PUBLIC_SITE_URL || env.ALLOWED_ORIGIN);
+            verifyUrl.searchParams.set("verify", token);
+            await sendActionEmail(env, email, "Xác minh email – AI Mini Business", verifyUrl.toString(), "Nhấn vào liên kết sau để xác minh email. Liên kết có hiệu lực trong 60 phút.");
+          } catch {
+            return json({ error: "email_delivery_unavailable" }, 503, env, request);
+          }
+        }
+        return json({ ok: true, message: "Nếu email tồn tại và chưa xác minh, hướng dẫn sẽ được gửi." }, 200, env, request);
+      }
+
+      if (url.pathname === "/api/auth/forgot-password" && request.method === "POST") {
+        const body = await readJson(request);
+        const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+        if (!validEmail(email)) return json({ error: "invalid_input" }, 400, env, request);
+        const user = await env.DB.prepare("SELECT id, email, email_verified_at FROM users WHERE email = ? LIMIT 1").bind(email).first();
+        if (user?.email_verified_at) {
+          try {
+            const token = await createEmailActionToken(env.DB, user.id, "reset_password", 30);
+            const resetUrl = new URL("/platform/customer/", env.PUBLIC_SITE_URL || env.ALLOWED_ORIGIN);
+            resetUrl.searchParams.set("reset", token);
+            await sendActionEmail(env, email, "Đặt lại mật khẩu – AI Mini Business", resetUrl.toString(), "Nhấn vào liên kết sau để đặt mật khẩu mới. Liên kết có hiệu lực trong 30 phút.");
+          } catch {
+            return json({ error: "email_delivery_unavailable" }, 503, env, request);
+          }
+        }
+        return json({ ok: true, message: "Nếu tài khoản tồn tại và đã xác minh, hướng dẫn đặt lại mật khẩu sẽ được gửi." }, 200, env, request);
+      }
+
+      if (url.pathname === "/api/auth/reset-password" && request.method === "POST") {
+        const body = await readJson(request);
+        if (typeof body?.token !== "string" || body.token.length < 20 || body.token.length > 200 ||
+            typeof body?.password !== "string" || body.password.length < 12 || body.password.length > 128) {
+          return json({ error: "invalid_input", message: "Liên kết không hợp lệ hoặc mật khẩu chưa đủ 12 ký tự." }, 400, env, request);
+        }
+        const tokenHash = await sha256(body.token);
+        const action = await env.DB.prepare(
+          "SELECT id, user_id FROM email_action_tokens WHERE token_hash = ? AND purpose = 'reset_password' AND used_at IS NULL AND expires_at > ? LIMIT 1"
+        ).bind(tokenHash, new Date().toISOString()).first();
+        if (!action) return json({ error: "invalid_or_expired_token" }, 400, env, request);
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const passwordHash = await hashPassword(body.password, salt);
+        const result = await env.DB.batch([
+          env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(`pbkdf2-sha256${PBKDF2_ITERATIONS}${bytesToBase64(salt)}${passwordHash}`, action.user_id),
+          env.DB.prepare("UPDATE email_action_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ? AND used_at IS NULL").bind(action.id),
+          env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(action.user_id),
+        ]);
+        if (!result[1]?.meta?.changes) return json({ error: "token_already_used" }, 409, env, request);
+        return json({ ok: true, message: "Mật khẩu đã được thay đổi. Hãy đăng nhập lại." }, 200, env, request);
       }
 
       if (url.pathname === "/api/auth/me" && request.method === "GET") {
