@@ -6,7 +6,7 @@ const api = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
 const customer = await readFile(new URL("../../customer/index.html", import.meta.url), "utf8");
 const admin = await readFile(new URL("../../admin/index.html", import.meta.url), "utf8");
 const migrations = await Promise.all(
-  Array.from({ length: 8 }, (_, i) =>
+  Array.from({ length: 9 }, (_, i) =>
     readFile(new URL(`../migrations/${String(i + 1).padStart(4, "0")}_${[
       "initial",
       "auth_sessions",
@@ -16,6 +16,7 @@ const migrations = await Promise.all(
       "api_rate_limits",
       "email_verification_password_reset",
       "service_cost_budgets",
+      "ai_generation_control",
     ][i]}.sql`, import.meta.url), "utf8")
   )
 );
@@ -26,7 +27,7 @@ test("Worker source parses as an ES module", async () => {
 });
 
 test("all seven ordered D1 migration files exist", () => {
-  assert.equal(migrations.length, 8);
+  assert.equal(migrations.length, 9);
   assert.match(migrations[5], /api_rate_limits/);
   assert.match(migrations[6], /email_action_tokens/);
   assert.match(migrations[7], /estimated_cost_units_per_use/);
@@ -103,4 +104,28 @@ test("admin can update the daily budget and validated service cost controls", ()
 
 test("generation endpoint remains disabled despite quota configuration", () => {
   assert.match(api, /generation_disabled/);
+});
+
+test("Workers AI generation is guarded by a default-off database kill switch", () => {
+  assert.match(migrations[8], /ai_generation_enabled', 'false'/);
+  assert.match(api, /controlMap\.ai_generation_enabled !== "true"/);
+  assert.match(api, /\/api\/admin\/ai-generation/);
+});
+
+test("AI generation only allows business-content and caps output tokens", () => {
+  assert.match(api, /serviceId !== "business-content"/);
+  assert.match(api, /max_tokens: 512/);
+  assert.match(api, /@cf\/meta\/llama-3\.2-1b-instruct/);
+});
+
+test("AI generation reserves quota before inference and releases it on failure", () => {
+  assert.match(api, /const reserve = await env\.DB\.batch\(\[/);
+  assert.match(api, /status='failed'.*WHERE id=\? AND status='reserved'/);
+  assert.match(api, /status='released'.*WHERE id=\? AND status='reserved'/);
+});
+
+test("AI generation stores output server-side and customer UI renders it as text", () => {
+  assert.match(api, /INSERT INTO ai_generations/);
+  assert.match(customer, /api\("\/api\/generate"/);
+  assert.match(customer, /result\.textContent=data\.generation\.text/);
 });
