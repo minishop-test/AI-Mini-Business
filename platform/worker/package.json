@@ -8,7 +8,9 @@
     "deploy": "wrangler deploy",
     "db:create": "wrangler d1 create ai-mini-business-db",
     "db:migrate:local": "wrangler d1 migrations apply ai-mini-business-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply ai-mini-business-db --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply ai-mini-business-db --remote",
+    "check": "node --check src/index.js",
+    "test": "node --test"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"
