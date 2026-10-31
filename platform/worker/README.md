@@ -6,6 +6,8 @@ This is a development foundation, not a production-ready service.
 - `GET /api/health`: health check.
 - `GET /api/services`: service availability from D1 settings.
 - `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
+- `POST /api/auth/verify-email`, `POST /api/auth/resend-verification`.
+- `POST /api/auth/forgot-password`, `POST /api/auth/reset-password`.
 - `POST /api/orders`, `GET /api/orders/me`: customer order submission and own-order listing.
 - `GET /api/admin/customers`, `GET /api/admin/orders`: admin-only customer and order lists.
 - `POST /api/admin/order`: admin-only order status transitions, quote, preview, notes and delivery link.
@@ -25,6 +27,8 @@ Authentication uses PBKDF2-SHA-256 password hashes with per-user salts and rando
 3. `migrations/0003_admin_and_service_controls.sql`
 4. `migrations/0004_quota_budget.sql`
 5. `migrations/0005_order_workflow.sql`
+6. `migrations/0006_api_rate_limits.sql`
+7. `migrations/0007_email_verification_password_reset.sql`
 
 Bind the database as `DB`.
 
@@ -58,14 +62,17 @@ Replace the placeholder with your own email. Never expose this SQL operation thr
 
 ## Environment configuration
 - `ALLOWED_ORIGIN`: exact website origin, including scheme, e.g. `https://example.com`. No wildcard.
+- `PUBLIC_SITE_URL`: public website base URL used to construct email action links.
+- `RESEND_API_KEY`: set as a Cloudflare Worker secret; never commit it.
+- `EMAIL_FROM`: verified sender identity/domain configured in Resend.
 - Keep `AI_ENABLED` unset or false.
 - Keep `GLOBAL_PAUSE` unset or true; the generation route remains disabled regardless.
 
 Browser requests must send credentials for the session cookie. State-changing routes require an exact Origin match with `ALLOWED_ORIGIN`.
 
 ## Current limitations — do not launch publicly yet
-- No rate limiting or bot/abuse protection.
-- No email verification, password reset, MFA, or account lockout.
+- Persistent Worker rate limits are enabled: registration 5/IP/15 minutes, login 10/IP/15 minutes, email actions 3/IP/1 hour, token submissions 10/IP/15 minutes, and order creation 10/user+IP/15 minutes. Cloudflare Turnstile and broader bot protection are not configured.
+- Email verification and password reset routes are implemented using hashed, expiring, one-time tokens. They require a configured Resend sender and still need end-to-end delivery testing. MFA and account lockout are not implemented.
 - No CSRF token flow; Origin checking is only one layer of defense.
 - Basic admin and customer HTML pages are in `../admin/index.html` and `../customer/index.html`; they are static interfaces and still need deployment and browser/API integration testing.
 - Order workflow APIs support a manual review and payment process. Status updates include the previously-read status in the UPDATE condition to reject competing transitions, and delivery requires an HTTPS link. There is no payment gateway or automatic email/file delivery.
@@ -77,3 +84,12 @@ Browser requests must send credentials for the session cookie. State-changing ro
 
 ## Cost and secret safety
 Do not put passwords, API keys, database identifiers, or private values in Git. Use Cloudflare secrets/bindings. Do not enable paid providers or automatic overages. AI generation stays disabled until server-side quotas, atomic reservations, budget enforcement, and monitoring are completed and tested.
+
+## Email delivery setup
+The Worker sends verification and password-reset messages through Resend.
+1. Verify a sending domain/address in Resend.
+2. Set Worker secrets: `npx wrangler secret put RESEND_API_KEY`.
+3. Set `EMAIL_FROM` to the verified sender and `PUBLIC_SITE_URL` to the public Pages/custom-domain origin in Worker vars.
+4. Apply migration `0007_email_verification_password_reset.sql`.
+5. Register a test account, confirm the message arrives, verify the email link, then test forgot/reset password. Ensure the reset token is single-use and old sessions are invalidated.
+Do not put the Resend API key in `wrangler.toml`, HTML, or Git.
