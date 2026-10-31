@@ -14,7 +14,7 @@ const customerAdmin = await readFile(new URL("../../customer-site/site/admin.htm
 const zipBuilder = await readFile(new URL("../../customer-site/tools/build-zip.mjs", import.meta.url), "utf8");
 const customerPackage = JSON.parse(await readFile(new URL("../../customer-site/package.json", import.meta.url), "utf8"));
 const migrations = await Promise.all(
-  Array.from({ length: 10 }, (_, i) =>
+  Array.from({ length: 11 }, (_, i) =>
     readFile(new URL(`../migrations/${String(i + 1).padStart(4, "0")}_${[
       "initial",
       "auth_sessions",
@@ -26,6 +26,7 @@ const migrations = await Promise.all(
       "service_cost_budgets",
       "ai_generation_control",
       "order_packages",
+      "order_revisions",
     ][i]}.sql`, import.meta.url), "utf8")
   )
 );
@@ -282,6 +283,23 @@ test("bundled website template contains isolated customer frontend, API and depl
   assert.match(customerTemplate, /ADMIN_API_TOKEN/);
   assert.match(customerTemplate, /CREATE TABLE IF NOT EXISTS products/);
   assert.match(customerTemplate, /customer-store-api/);
+});
+
+test("website revisions are limited to the customer's own pending-review order", () => {
+  assert.match(api, /order_id = \\? AND user_id = \\? AND service_id = 'website'/);
+  assert.match(api, /revisionOrder.status !== "pending_review"/);
+  assert.match(api, /UPDATE orders SET preview_text = \\?[^\\n]*status = 'pending_review'/);
+  assert.match(api, /INSERT INTO order_revisions/);
+  assert.match(api, /revisionOrder \\? \\{/);
+  assert.match(customer, /Yêu cầu AI chỉnh sửa website/);
+  assert.match(customer, /order_id:o.id/);
+  assert.match(customer, /Gửi yêu cầu chỉnh sửa/);
+});
+
+test("website revision history migration is scoped to order and user", () => {
+  assert.match(migrations[10], /CREATE TABLE IF NOT EXISTS order_revisions/);
+  assert.match(migrations[10], /order_id TEXT NOT NULL REFERENCES orders/);
+  assert.match(migrations[10], /user_id TEXT NOT NULL REFERENCES users/);
 });
 
 test("order package migration stores only private package metadata", () => {
