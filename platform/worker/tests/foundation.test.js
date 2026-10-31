@@ -354,7 +354,7 @@ test("customer storefront records admin mutations and exposes a protected read-o
   assert.match(customerSiteApi, /async function writeAudit/);
   assert.match(customerSiteApi, /INSERT INTO admin_audit_log/);
   assert.ok(customerSiteApi.includes('"product.updated"'));
-  assert.ok(customerSiteApi.includes('"product.updated"'));
+  assert.ok(customerSiteApi.includes('"order.delivery_file_uploaded"'));
   assert.ok(customerSiteApi.includes('"order.payment_delivery_updated"'));
   assert.match(customerSiteApi, /await isAdmin\(request, env\)/);
   assert.match(customerSiteSchema, /CREATE TABLE IF NOT EXISTS admin_audit_log/);
@@ -370,6 +370,12 @@ test("customer admin dashboard provides local product and order search fields", 
   assert.match(customerAdmin, /id="orderSearch"/);
   assert.match(customerAdmin, /function filterRows/);
   assert.match(customerAdmin, /toLocaleLowerCase\("vi"\)/);
+});
+
+test("private delivery uploads reject oversized multipart requests before parsing", () => {
+  assert.match(customerSiteApi, /content-length/);
+  assert.match(customerSiteApi, /upload_too_large/);
+  assert.match(customerSiteApi, /20 \* 1024 \* 1024/);
 });
 
 test("customer order admin separates payment confirmation from delivery", () => {
