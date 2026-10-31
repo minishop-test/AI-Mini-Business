@@ -350,6 +350,23 @@ test("customer storefront admin awaits session checks and throttles failed login
   assert.match(customerAdmin, /api\/admin\/login/);
 });
 
+test("customer storefront records admin mutations and exposes a protected read-only audit log", () => {
+  assert.match(customerSiteApi, /async function writeAudit/);
+  assert.match(customerSiteApi, /INSERT INTO admin_audit_log/);
+  assert.match(customerSiteApi, /product\.created/);
+  assert.match(customerSiteApi, /product\.activated/);
+  assert.match(customerSiteApi, /product\.hidden/);
+  assert.match(customerSiteApi, /order\.status_changed/);
+  assert.match(customerSiteApi, /api\/admin\/audit-log/);
+  assert.match(customerSiteApi, /await isAdmin\(request, env\)/);
+  assert.match(customerSiteSchema, /CREATE TABLE IF NOT EXISTS admin_audit_log/);
+  assert.match(customerAdmin, /id="auditLog"/);
+  assert.match(customerAdmin, /api\("/api\/admin\/audit-log"\)/);
+  assert.match(customerAdmin, /entry\.action/);
+  assert.match(customerSiteReadme, /D1 export/);
+  assert.match(customerSiteReadme, /0003_admin_audit_log\.sql/);
+});
+
 test("customer can edit website draft fields and save through authenticated revision endpoint", () => {
   assert.match(api, /websiteConfigMatch/);
   assert.match(api, /UPDATE orders SET preview_text/);
