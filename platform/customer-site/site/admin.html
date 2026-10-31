@@ -27,7 +27,7 @@
 </main>
 <script>
 const API_BASE="https://REPLACE-WITH-YOUR-WORKER.workers.dev";
-let adminToken="";
+let adminToken="",sessionExpiryTimer=null;
 const $=id=>document.getElementById(id);
 const money=n=>Number(n).toLocaleString("vi-VN")+" ₫";
 function notify(message,error=false){$("message").textContent=message;$("message").classList.remove("hidden","error");if(error)$("message").classList.add("error");}
@@ -49,8 +49,22 @@ async function loadAll(){
  if(!(orders.orders||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=6;td.textContent="Chưa có đơn hàng.";tr.append(td);$("orders").append(tr);}
  $("summary").textContent=(products.products||[]).length+" sản phẩm · "+(orders.orders||[]).length+" đơn hàng (tối đa 200 đơn gần nhất).";
 }
-$("connect").addEventListener("click",async()=>{adminToken=$("token").value.trim();$("connect").disabled=true;try{await loadAll();$("login").classList.add("hidden");$("dashboard").classList.remove("hidden");notify("Đã kết nối quản trị.");}catch(e){adminToken="";$("loginMessage").textContent="Không thể đăng nhập: "+e.message;$("loginMessage").classList.remove("hidden");}finally{$("connect").disabled=false;}});
+$("connect").addEventListener("click",async()=>{
+ const masterToken=$("token").value.trim();$("connect").disabled=true;
+ try{
+  const response=await fetch(API_BASE+"/api/admin/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token:masterToken})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.session_token)throw new Error(data.error||"Không thể đăng nhập.");
+  adminToken=data.session_token;
+  await loadAll();
+  $("token").value="";$("login").classList.add("hidden");$("dashboard").classList.remove("hidden");
+  if(sessionExpiryTimer)clearTimeout(sessionExpiryTimer);
+  sessionExpiryTimer=setTimeout(()=>{$("logout").click();notify("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",true);},Math.max(1,Number(data.expires_in)||1800)*1000);
+  notify("Đăng nhập thành công. Phiên sẽ hết hạn sau 30 phút.");
+ }catch(e){adminToken="";$("loginMessage").textContent="Không thể đăng nhập: "+e.message;$("loginMessage").classList.remove("hidden");}
+ finally{$("connect").disabled=false;}
+});
 $("productForm").addEventListener("submit",async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;try{await api("/api/admin/products",{method:"POST",body:JSON.stringify({name:$("pName").value,description:$("pDescription").value,price_vnd:Number($("pPrice").value),image_url:$("pImage").value||null})});$("productForm").reset();await loadAll();notify("Đã thêm sản phẩm.");}catch(err){notify(err.message,true);}finally{btn.disabled=false;}});
 $("refresh").addEventListener("click",()=>loadAll().then(()=>notify("Đã làm mới dữ liệu.")).catch(e=>notify(e.message,true)));
-$("logout").addEventListener("click",()=>{adminToken="";$("dashboard").classList.add("hidden");$("login").classList.remove("hidden");$("token").value="";notify("Đã đăng xuất.");});
+$("logout").addEventListener("click",async()=>{const oldToken=adminToken;adminToken="";if(sessionExpiryTimer)clearTimeout(sessionExpiryTimer);try{if(oldToken)await fetch(API_BASE+"/api/admin/logout",{method:"POST",headers:{"authorization":"Bearer "+oldToken}});}finally{$("dashboard").classList.add("hidden");$("login").classList.remove("hidden");$("token").value="";notify("Đã đăng xuất.");}});
 </script></body></html>
