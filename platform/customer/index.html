@@ -74,6 +74,22 @@ button.secondary{background:#e9eef6;color:#1e293b}button:disabled{opacity:.5;cur
 </form>
 <div id="aiDraftResult" class="notice hidden" style="white-space:pre-wrap"></div>
 </section>
+<section class="card hidden" id="websiteDraftCard">
+<h2>Tạo bản thiết kế website bằng AI</h2>
+<p class="muted">AI sẽ tạo bản cấu hình và danh sách sản phẩm mẫu để bạn xem xét. Đây chưa phải website ZIP hoàn chỉnh; chưa có gì được công khai lên Internet.</p>
+<form id="websiteDraftForm">
+<label for="websiteBrief">Mô tả website bạn muốn</label>
+<textarea id="websiteBrief" minlength="10" maxlength="4000" required placeholder="Ví dụ: Website bán quần áo nữ phong cách tối giản, tông màu be, có danh mục váy, áo, phụ kiện..."></textarea>
+<button id="generateWebsite" type="submit">Tạo bản thiết kế</button>
+</form>
+<div id="websiteDraftResult" class="hidden" style="margin-top:14px">
+<div class="notice" id="websiteSummary"></div>
+<h3>Sản phẩm mẫu do AI đề xuất</h3>
+<div id="websiteProducts"></div>
+<button type="button" class="secondary" id="downloadWebsiteConfig">Tải cấu hình JSON</button>
+<p class="muted">Hãy kiểm tra lại tên, mô tả, giá và yêu cầu chỉnh sửa trước khi dùng làm dữ liệu website.</p>
+</div>
+</section>
 <section class="card hidden" id="ordersCard">
 <h2>Đơn hàng của tôi</h2><button id="reloadOrders" class="secondary">Cập nhật đơn hàng</button>
 <div id="orders" style="margin-top:10px">Chưa tải đơn hàng.</div>
@@ -115,7 +131,7 @@ async function refreshOrders(){
  if(!(data.orders||[]).length)$("orders").textContent="Bạn chưa có đơn hàng.";
 }
 async function enterAccount(user){
- currentUser=user;$("authCard").classList.add("hidden");$("accountCard").classList.remove("hidden");$("requestCard").classList.remove("hidden");$("ordersCard").classList.remove("hidden");$("aiDraftCard").classList.remove("hidden");$("welcome").textContent=user.email;
+ currentUser=user;$("authCard").classList.add("hidden");$("accountCard").classList.remove("hidden");$("requestCard").classList.remove("hidden");$("ordersCard").classList.remove("hidden");$("aiDraftCard").classList.remove("hidden");$("websiteDraftCard").classList.remove("hidden");$("welcome").textContent=user.email;
  await Promise.all([refreshQuota(),refreshOrders()]);
 }
 $("resendVerify").addEventListener("click",async()=>{
@@ -155,13 +171,42 @@ $("authForm").addEventListener("submit",async e=>{
 });
 $("logout").addEventListener("click",async()=>{
  try{await api("/api/auth/logout",{method:"POST"});}catch(e){}
- currentUser=null;$("authCard").classList.remove("hidden");$("accountCard").classList.add("hidden");$("requestCard").classList.add("hidden");$("ordersCard").classList.add("hidden");$("aiDraftCard").classList.add("hidden");notice("Bạn đã đăng xuất.");
+ currentUser=null;$("authCard").classList.remove("hidden");$("accountCard").classList.add("hidden");$("requestCard").classList.add("hidden");$("ordersCard").classList.add("hidden");$("aiDraftCard").classList.add("hidden");$("websiteDraftCard").classList.add("hidden");notice("Bạn đã đăng xuất.");
 });
 $("aiDraftForm").addEventListener("submit",async e=>{
  e.preventDefault();$("generateDraft").disabled=true;const result=$("aiDraftResult");result.classList.remove("hidden");result.className="notice";result.textContent="Đang tạo nội dung..."; 
  try{const data=await api("/api/generate",{method:"POST",body:JSON.stringify({service_id:"business-content",brief:$("aiBrief").value})});result.className="notice ok";result.textContent=data.generation.text;await refreshQuota();}
  catch(err){result.className="notice error";result.textContent="Chưa tạo được nội dung: "+err.message;}
  finally{$("generateDraft").disabled=false;}
+});
+let latestWebsiteConfig=null;
+$("websiteDraftForm").addEventListener("submit",async e=>{
+ e.preventDefault();$("generateWebsite").disabled=true;
+ const result=$("websiteDraftResult"),summary=$("websiteSummary");
+ result.classList.remove("hidden");summary.className="notice";summary.textContent="AI đang phân tích yêu cầu...";
+ try{
+  const data=await api("/api/generate",{method:"POST",body:JSON.stringify({service_id:"website",brief:$("websiteBrief").value})});
+  latestWebsiteConfig=data.generation.website_config;
+  const cfg=latestWebsiteConfig;
+  summary.textContent=cfg.storeName+" · "+cfg.tagline+" · Màu chủ đạo "+cfg.primaryColor+" · Trang: "+(cfg.pages||[]).join(", ");
+  $("websiteProducts").replaceChildren();
+  (cfg.products||[]).forEach(p=>{
+   const item=document.createElement("div");item.className="order";
+   const title=document.createElement("strong");title.textContent=p.name;
+   const description=document.createElement("p");description.className="muted";description.textContent=p.description;
+   const price=document.createElement("p");price.textContent=Number(p.priceVnd).toLocaleString("vi-VN")+" VNĐ"+(p.priceVnd===0?" · cần xác nhận giá":"");
+   item.append(title,description,price);$("websiteProducts").append(item);
+  });
+  if(!(cfg.products||[]).length)$("websiteProducts").textContent="AI chưa đề xuất sản phẩm mẫu.";
+  summary.className="notice ok";await refreshQuota();
+ }catch(err){summary.className="notice error";summary.textContent="Chưa tạo được bản thiết kế: "+err.message;}
+ finally{$("generateWebsite").disabled=false;}
+});
+$("downloadWebsiteConfig").addEventListener("click",()=>{
+ if(!latestWebsiteConfig)return;
+ const blob=new Blob([JSON.stringify(latestWebsiteConfig,null,2)],{type:"application/json"});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download="website-config.json";a.click();URL.revokeObjectURL(url);
 });
 $("orderForm").addEventListener("submit",async e=>{
  e.preventDefault();$("submitOrder").disabled=true;
