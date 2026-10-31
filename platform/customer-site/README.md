@@ -95,7 +95,7 @@ Chạy lệnh có `--config ./store.json`. Tên cửa hàng, câu giới thiệu
 ## File bàn giao riêng tư (R2)
 Tạo bucket riêng: `npx wrangler r2 bucket create customer-store-private-deliveries`. Worker dùng binding `DELIVERIES` trong wrangler.toml; bucket không bật public access. Áp dụng migration `0005_private_deliveries.sql` cho database cũ; database mới chạy schema.sql.
 
-Quản trị viên gửi file dạng multipart/form-data với field `file` đến `POST /api/admin/orders/:id/delivery-file`. Cho phép PDF, TXT, ZIP, DOCX, PNG, JPG và SVG; giới hạn 20 MiB. File lưu trong R2, không tạo URL công khai. Sau khi đã xác nhận thanh toán và đánh dấu bàn giao, quản trị viên gọi `POST /api/admin/orders/:id/delivery-link`. Link tải có hạn 24 giờ và chỉ dùng một lần. Endpoint tải kiểm tra lại trạng thái đơn, rồi đọc object từ bucket riêng tư.
+Quản trị viên gửi file dạng multipart/form-data với field `file` đến `POST /api/admin/orders/:id/delivery-file`. Cho phép PDF, TXT, ZIP, DOCX, PNG và JPG; giới hạn 20 MiB. File lưu trong R2, không tạo URL công khai. Sau khi đã xác nhận thanh toán và đánh dấu bàn giao, quản trị viên gọi `POST /api/admin/orders/:id/delivery-link`. Link tải có hạn 24 giờ và chỉ dùng một lần. Endpoint tải kiểm tra lại trạng thái đơn, rồi đọc object từ bucket riêng tư.
 
 Các route này yêu cầu session quản trị hợp lệ. Không gửi file qua public R2 URL. Nếu upload thay file cũ, object cũ cần được dọn định kỳ; không xóa thủ công bucket đang dùng. Chưa có giao diện nút upload/cấp link trong admin dashboard; các endpoint là nền backend, cần nối UI ở bước kế tiếp.
 
@@ -103,3 +103,5 @@ Các route này yêu cầu session quản trị hợp lệ. Không gửi file qu
 Trước khi chạy migration hoặc cập nhật Worker, nên xuất bản sao D1:
 `npx wrangler d1 export customer-store-db --remote --output=./backup-customer-store.sql`.
 Giữ file backup ở nơi riêng tư; không đưa dữ liệu khách hàng vào ZIP phát hành hoặc commit lên GitHub.
+
+\n### Kiểm tra file bàn giao\nBackend xác minh chữ ký nội dung cơ bản của PDF, PNG, JPEG và ZIP/DOCX thay vì tin MIME do trình duyệt gửi lên. SVG bị loại khỏi danh sách upload để tránh nội dung SVG chủ động. Khi thay file, token tải cũ của đơn bị vô hiệu hóa; object R2 cũ được xóa sau khi bản ghi mới lưu thành công.
