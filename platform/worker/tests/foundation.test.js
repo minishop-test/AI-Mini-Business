@@ -372,6 +372,15 @@ test("customer admin dashboard provides local product and order search fields", 
   assert.match(customerAdmin, /toLocaleLowerCase\("vi"\)/);
 });
 
+test("customer admin shows expandable order details and responsive mobile layout", () => {
+  assert.match(customerAdmin, /details\.textContent="Chi tiết"/);
+  assert.match(customerAdmin, /customer_phone/);
+  assert.match(customerAdmin, /unit_price_vnd/);
+  assert.match(customerAdmin, /dataset\.detailFor/);
+  assert.match(customerAdmin, /@media\(max-width:640px\)/);
+  assert.match(customerAdmin, /overflow-x:auto/);
+});
+
 test("customer storefront admin can edit product fields and export orders as CSV", () => {
   assert.match(customerSiteApi, /UPDATE products SET name=\?,description=\?,price_vnd=\?,image_url=\?,active=\?/);
   assert.match(customerSiteApi, /product\.updated/);
