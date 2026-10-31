@@ -472,7 +472,11 @@ export default {
       if (!storeName || !tagline || !primaryColor) return json({ error: "invalid_website_fields" },400,env,request);
       const pages = Array.isArray(cfg.pages) ? cfg.pages.slice(0,8).map(p=>clean(p,40)).filter(Boolean) : [];
       const products = Array.isArray(cfg.products) ? cfg.products.slice(0,30).map(p=>({name:clean(p?.name,120),description:clean(p?.description,1000),priceVnd:Number.isSafeInteger(p?.priceVnd)&&p.priceVnd>=0&&p.priceVnd<=1000000000?p.priceVnd:null,imageUrl:typeof p?.imageUrl==="string"&&/^https:\/\//i.test(p.imageUrl)&&p.imageUrl.length<=2000?p.imageUrl:null})).filter(p=>p.name&&p.priceVnd!==null) : [];
-      const normalized = {storeName,tagline,primaryColor,pages,products};
+      const template = ["minimal","bold","editorial"].includes(cfg.template) ? cfg.template : "minimal";
+      const productColumns = [2,3,4].includes(cfg.productColumns) ? cfg.productColumns : 3;
+      const heroImageUrl = typeof cfg.heroImageUrl === "string" && /^https:\/\//i.test(cfg.heroImageUrl) && cfg.heroImageUrl.length <= 2000 ? cfg.heroImageUrl : null;
+      const heroTitle = clean(cfg.heroTitle,100);
+      const normalized = {storeName,tagline,primaryColor,pages,products,template,productColumns,heroImageUrl,heroTitle};
       const serialized = JSON.stringify(normalized);
       if (serialized.length > 20000) return json({error:"website_config_too_large"},413,env,request);
       const updated = await env.DB.prepare("UPDATE orders SET preview_text=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=? AND service_id='website' AND status='pending_review'").bind(serialized,orderId,user.id).run();
