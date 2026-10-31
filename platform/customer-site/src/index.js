@@ -149,7 +149,7 @@ export default {
       if (url.pathname === "/api/admin/orders" && request.method === "GET") {
         if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
         const rows = await env.DB.prepare(
-          "SELECT id,customer_name,customer_email,product_name_snapshot,unit_price_vnd,quantity,total_vnd,note,status,created_at FROM orders ORDER BY created_at DESC LIMIT 200"
+          "SELECT id,customer_name,customer_email,product_name_snapshot,unit_price_vnd,quantity,total_vnd,note,status,payment_status,delivery_status,created_at FROM orders ORDER BY created_at DESC LIMIT 200"
         ).all();
         return json({ orders: rows.results || [] }, 200, request, env);
       }
@@ -201,12 +201,19 @@ export default {
       if (statusMatch && request.method === "PATCH") {
         if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
         const data = await bodyJson(request, 1000);
-        const allowed = ["new","confirmed","completed","cancelled"];
-        if (!data || !allowed.includes(data.status)) return json({ error: "invalid_status" }, 400, request, env);
-        const result = await env.DB.prepare("UPDATE orders SET status=? WHERE id=?").bind(data.status,statusMatch[1]).run();
+        if (!data || typeof data !== "object" || Array.isArray(data)) return json({ error: "invalid_order_update" }, 400, request, env);
+        const current = await env.DB.prepare("SELECT id,payment_status,delivery_status FROM orders WHERE id=?").bind(statusMatch[1]).first();
+        if (!current) return json({ error: "order_not_found" }, 404, request, env);
+        const payment = data.payment_status ?? current.payment_status ?? "pending";
+        const delivery = data.delivery_status ?? current.delivery_status ?? "pending";
+        if (!["pending","paid","refunded"].includes(payment)) return json({ error: "invalid_payment_status" }, 400, request, env);
+        if (!["pending","delivered"].includes(delivery)) return json({ error: "invalid_delivery_status" }, 400, request, env);
+        if (delivery === "delivered" && payment !== "paid") return json({ error: "payment_required_before_delivery" }, 409, request, env);
+        const result = await env.DB.prepare("UPDATE orders SET payment_status=?,delivery_status=?,status=CASE WHEN ?='delivered' THEN 'completed' ELSE status END WHERE id=?")
+          .bind(payment,delivery,delivery,statusMatch[1]).run();
         if (!result.meta?.changes) return json({ error: "order_not_found" }, 404, request, env);
-        await writeAudit(env, "order.status_changed", "order", statusMatch[1], { status: data.status });
-        return json({ ok: true, status: data.status }, 200, request, env);
+        await writeAudit(env, "order.payment_delivery_updated", "order", statusMatch[1], { payment_status: payment, delivery_status: delivery });
+        return json({ ok: true, payment_status: payment, delivery_status: delivery }, 200, request, env);
       }
 
       return json({ error: "not_found" }, 404, request, env);
