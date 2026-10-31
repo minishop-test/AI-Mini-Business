@@ -19,7 +19,7 @@ button.secondary{background:#e9eef6;color:#1e293b}button:disabled{opacity:.5;cur
 .quota div{background:#f7f9fc;padding:12px;border-radius:10px}.quota strong{display:block;font-size:20px}
 .order{padding:14px 0;border-bottom:1px solid #e9edf3}.order:last-child{border:0}.status{display:inline-block;border-radius:20px;padding:3px 9px;background:#eef2f7;font-size:12px}
 @media(max-width:560px){main{margin:16px auto}.card{padding:16px}.row{display:grid}}
-</style>
+.website-preview{border:1px solid #dbe2ea;border-radius:14px;overflow:hidden;background:#f8fafc;color:#172033;margin:12px 0 20px}.website-preview .pv-head{padding:26px 20px;color:white}.website-preview .pv-head h2{margin:0 0 5px;font-size:25px}.website-preview .pv-nav{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;background:white;border-bottom:1px solid #e2e8f0}.website-preview .pv-chip{border:1px solid #e2e8f0;border-radius:20px;padding:4px 10px;font-size:12px}.website-preview .pv-content{padding:16px}.website-preview .pv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.website-preview .pv-product{background:white;border:1px solid #e2e8f0;border-radius:10px;padding:10px;min-width:0}.website-preview .pv-product img{width:100%;height:110px;object-fit:cover;border-radius:7px}.website-preview .pv-product h4{margin:8px 0 4px;font-size:15px}.website-preview .pv-product p{font-size:12px;color:#64748b;margin:4px 0}.website-preview .pv-price{font-weight:750;color:#172033;font-size:15px}.website-preview .pv-empty{color:#64748b;font-size:13px}@media(max-width:480px){.website-preview .pv-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.website-preview .pv-head{padding:20px 14px}}</style>
 </head>
 <body>
 <header><h1>AI Mini Business</h1><div class="muted" style="color:#cbd5e1">Khu vực khách hàng · <a href="../../">Về trang chủ</a></div></header>
@@ -84,6 +84,8 @@ button.secondary{background:#e9eef6;color:#1e293b}button:disabled{opacity:.5;cur
 </form>
 <div id="websiteDraftResult" class="hidden" style="margin-top:14px">
 <div class="notice" id="websiteSummary"></div>
+<h3>Xem trước giao diện website</h3>
+<div id="websiteLivePreview" class="website-preview" aria-label="Bản xem trước website"></div>
 <h3>Sản phẩm mẫu do AI đề xuất</h3>
 <div id="websiteProducts"></div>
 <button type="button" class="secondary" id="downloadWebsiteConfig">Tải cấu hình JSON</button>
@@ -110,6 +112,30 @@ async function api(path,options={}){
 function setMode(mode){authMode=mode;$("authSubmit").textContent=mode==="login"?"Đăng nhập":"Tạo tài khoản";$("password").autocomplete=mode==="login"?"current-password":"new-password";}
 function serviceName(id){return ({website:"Tạo website","video-prompts":"Prompt video AI",logo:"Thiết kế logo","business-content":"Nội dung kinh doanh",documents:"Tài liệu số"})[id]||id;}
 function statusName(status){return ({pending_review:"Chờ quản trị viên xem xét",awaiting_payment:"Chờ thanh toán",paid:"Đã thanh toán",processing:"Đang xử lý",delivered:"Đã bàn giao",cancelled:"Đã hủy"})[status]||status;}
+function renderStorePreview(container,cfg){
+ container.replaceChildren();
+ const safeColor=/^#[0-9a-fA-F]{6}$/.test(cfg?.primaryColor||"")?cfg.primaryColor:"#2563eb";
+ const shell=document.createElement("div");shell.className="website-preview";
+ const head=document.createElement("header");head.className="pv-head";head.style.background=safeColor;
+ const name=document.createElement("h2");name.textContent=String(cfg?.storeName||"Cửa hàng của tôi").slice(0,80);
+ const tagline=document.createElement("div");tagline.textContent=String(cfg?.tagline||"Sản phẩm và dịch vụ").slice(0,160);tagline.style.opacity=".9";head.append(name,tagline);
+ const nav=document.createElement("nav");nav.className="pv-nav";
+ (Array.isArray(cfg?.pages)?cfg.pages.slice(0,8):["Trang chủ","Sản phẩm","Liên hệ"]).forEach(label=>{const chip=document.createElement("span");chip.className="pv-chip";chip.textContent=String(label).slice(0,40);nav.append(chip);});
+ const content=document.createElement("section");content.className="pv-content";
+ const title=document.createElement("h3");title.textContent="Sản phẩm nổi bật";title.style.margin="0 0 12px";
+ const grid=document.createElement("div");grid.className="pv-grid";
+ const products=Array.isArray(cfg?.products)?cfg.products.slice(0,8):[];
+ products.forEach(product=>{
+  const card=document.createElement("article");card.className="pv-product";
+  if(typeof product.imageUrl==="string"&&/^https:\/\//i.test(product.imageUrl)&&product.imageUrl.length<2000){const img=document.createElement("img");img.src=product.imageUrl;img.alt=String(product.name||"Sản phẩm").slice(0,100);img.loading="lazy";img.referrerPolicy="no-referrer";card.append(img);}
+  const productName=document.createElement("h4");productName.textContent=String(product.name||"Sản phẩm").slice(0,120);
+  const desc=document.createElement("p");desc.textContent=String(product.description||"").slice(0,180);
+  const price=document.createElement("div");price.className="pv-price";price.textContent=Number(product.priceVnd||0).toLocaleString("vi-VN")+" ₫";
+  card.append(productName,desc,price);grid.append(card);
+ });
+ if(!products.length){const empty=document.createElement("p");empty.className="pv-empty";empty.textContent="Sản phẩm sẽ được cập nhật sau.";grid.append(empty);}
+ content.append(title,grid);shell.append(head,nav,content);container.append(shell);
+}
 async function refreshQuota(){
  const data=await api("/api/quota/me");$("quota").innerHTML="";
  (data.services||[]).forEach(s=>{const item=document.createElement("div");const title=document.createElement("span");title.className="muted";title.textContent=serviceName(s.service_id);const value=document.createElement("strong");value.textContent=s.remaining+" / "+s.free_limit;const note=document.createElement("span");note.className="muted";note.textContent=s.enabled?"lượt còn lại":"dịch vụ đang tạm tắt";item.append(title,value,note);$("quota").append(item);});
@@ -124,7 +150,12 @@ async function refreshOrders(){
   const amount=document.createElement("p");amount.textContent="Giá: "+Number(o.amount_vnd||0).toLocaleString("vi-VN")+" VNĐ";
   item.append(title,document.createTextNode(" "),state,brief,amount);
   if(o.admin_note){const note=document.createElement("p");note.className="muted";note.textContent="Ghi chú: "+o.admin_note;item.append(note);}
-  if(o.preview_text){const preview=document.createElement("details");const summary=document.createElement("summary");summary.textContent="Xem nội dung xem trước";const body=document.createElement("pre");body.style.whiteSpace="pre-wrap";body.textContent=o.preview_text;preview.append(summary,body);item.append(preview);}
+  if(o.preview_text){
+   const preview=document.createElement("details");const summary=document.createElement("summary");summary.textContent="Xem bản thiết kế";preview.append(summary);
+   if(o.service_id==="website"){try{const cfg=JSON.parse(o.preview_text);const visual=document.createElement("div");renderStorePreview(visual,cfg);preview.append(visual);}catch{const body=document.createElement("pre");body.style.whiteSpace="pre-wrap";body.textContent=o.preview_text;preview.append(body);}}
+   else{const body=document.createElement("pre");body.style.whiteSpace="pre-wrap";body.textContent=o.preview_text;preview.append(body);}
+   item.append(preview);
+  }
   if(o.service_id==="website" && o.status==="pending_review"){
    const edit=document.createElement("details");const editTitle=document.createElement("summary");editTitle.textContent="Yêu cầu AI chỉnh sửa website";edit.append(editTitle);
    const instruction=document.createElement("textarea");instruction.rows=3;instruction.maxLength=4000;instruction.minLength=10;instruction.placeholder="Ví dụ: đổi màu chủ đạo sang xanh dương, thêm danh mục...";
@@ -204,6 +235,7 @@ $("websiteDraftForm").addEventListener("submit",async e=>{
   const data=await api("/api/generate",{method:"POST",body:JSON.stringify({service_id:"website",brief:$("websiteBrief").value})});
   latestWebsiteConfig=data.generation.website_config;
   const cfg=latestWebsiteConfig;
+  renderStorePreview($("websiteLivePreview"),cfg);
   summary.textContent=cfg.storeName+" · "+cfg.tagline+" · Màu chủ đạo "+cfg.primaryColor+" · Trang: "+(cfg.pages||[]).join(", ")+(data.order?.id?" · Đã tạo đơn "+data.order.id+" (chờ quản trị viên xem xét).":"");
   $("websiteProducts").replaceChildren();
   (cfg.products||[]).forEach(p=>{
