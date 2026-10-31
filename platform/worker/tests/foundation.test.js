@@ -120,9 +120,35 @@ test("Workers AI generation is guarded by a default-off database kill switch", (
 });
 
 test("AI generation only allows business-content and caps output tokens", () => {
-  assert.match(api, /serviceId !== "business-content"/);
+  assert.match(api, /!\["business-content", "website"\]\.includes\(serviceId\)/);
   assert.match(api, /max_tokens: 512/);
   assert.match(api, /@cf\/meta\/llama-3\.2-1b-instruct/);
+});
+
+test("AI website generation returns a validated configuration and bounded product suggestions", () => {
+  assert.match(api, /const isWebsite = serviceId === "website"/);
+  assert.match(api, /Chỉ trả về MỘT JSON object hợp lệ/);
+  assert.match(api, /websiteConfig\.primaryColor/);
+  assert.match(api, /websiteConfig\.products\.length > 8/);
+  assert.match(api, /priceVnd/);
+  assert.match(api, /generation: isWebsite/);
+  assert.match(api, /max_tokens: isWebsite \? 900 : 512/);
+});
+
+test("customer dashboard exposes website generation and a JSON config download", () => {
+  assert.match(customer, /id="websiteDraftForm"/);
+  assert.match(customer, /service_id:"website"/);
+  assert.match(customer, /website_config/);
+  assert.match(customer, /downloadWebsiteConfig/);
+  assert.match(customer, /website-config\.json/);
+  assert.match(customer, /URL\.createObjectURL/);
+});
+
+test("website generation still requires an explicit admin enable switch and a quota reservation", () => {
+  assert.match(api, /controlMap\.ai_generation_enabled !== "true"/);
+  assert.match(api, /const reserve = await env\.DB\.batch\(\[/);
+  assert.match(api, /daily_budget_units/);
+  assert.match(api, /serviceId === "website"/);
 });
 
 test("AI generation reserves quota before inference and releases it on failure", () => {
