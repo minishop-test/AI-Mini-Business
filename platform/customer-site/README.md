@@ -45,7 +45,24 @@ Các endpoint:
 - `POST /api/admin/login`: đổi token quản trị thành phiên đăng nhập ngắn hạn.\n- `POST /api/admin/logout`: thu hồi phiên hiện tại.\n- `GET /api/admin/products`: xem tất cả sản phẩm kể cả sản phẩm đang ẩn (admin).
 - `POST /api/admin/products`: tạo sản phẩm (admin).
 - `PATCH /api/admin/products/:id`: bật/tắt hiển thị sản phẩm (admin).
-- `PATCH /api/admin/orders/:id`: cập nhật trạng thái đơn (admin).
+- `PATCH /api/admin/orders/:id`: cập nhật trạng thái đơn (admin).\n- `GET /api/admin/audit-log`: xem 100 hoạt động quản trị gần nhất (admin).
+
+## Nhật ký quản trị và sao lưu
+
+Dashboard quản trị hiển thị tối đa 100 hoạt động gần nhất. Backend ghi nhận lúc tạo sản phẩm, bật/tắt hiển thị sản phẩm và đổi trạng thái đơn hàng. Nhật ký chỉ đọc qua phiên quản trị hợp lệ; không có API công khai để sửa hoặc xóa nhật ký. Nội dung nhật ký tránh lưu email, số điện thoại hoặc ghi chú của người mua.
+
+Database mới đã có bảng `admin_audit_log` trong `schema.sql`. Nếu database đã tồn tại, áp dụng migration:
+`npx wrangler d1 execute customer-store-db --remote --file=./migrations/0003_admin_audit_log.sql`.
+
+### Sao lưu D1
+
+Chạy lệnh từ thư mục dự án đã giải nén:
+`npx wrangler d1 export customer-store-db --remote --output=./backup-customer-store.sql`.
+
+Giữ file sao lưu ở nơi riêng tư, mã hóa và giới hạn người có quyền truy cập. Định kỳ tạo bản sao trước khi cập nhật schema hoặc triển khai thay đổi lớn. Để khôi phục vào database mới/đã chuẩn bị, kiểm tra nội dung file trước rồi chạy:
+`npx wrangler d1 execute customer-store-db --remote --file=./backup-customer-store.sql`.
+
+Thử khôi phục trên database thử nghiệm trước khi dùng bản sao cho cửa hàng thật. File SQL có thể chứa dữ liệu cá nhân của khách mua hàng; không tải công khai lên GitHub hoặc gửi qua liên kết công khai. Xác minh cú pháp lệnh theo phiên bản Wrangler đang cài trước khi thao tác production.
 
 ## Giới hạn và an toàn
 - Đây là starter template để thử nghiệm, chưa phải nền tảng thương mại điện tử production-ready.
