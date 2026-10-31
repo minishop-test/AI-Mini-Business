@@ -322,6 +322,23 @@ test("visual editor supports layout templates, product columns, banner and devic
   assert.match(api, /const heroTitle/);
 });
 
+test("customer storefront admin uses expiring hashed sessions and deployment schema includes session table", () => {
+  assert.match(customerSiteApi, /async function hashSessionToken/);
+  assert.match(customerSiteApi, /admin_sessions WHERE token_hash=\?/);
+  assert.match(customerSiteApi, /expires_at > CURRENT_TIMESTAMP/);
+  assert.match(customerSiteApi, /api\/admin\/login/);
+  assert.match(customerSiteApi, /datetime\('now','\+30 minutes'\)/);
+  assert.match(customerSiteApi, /api\/admin\/logout/);
+  assert.match(customerSiteApi, /DELETE FROM admin_sessions/);
+  assert.match(customerSiteApi, /await isAdmin\(request, env\)/);
+  assert.match(customerSiteAdmin, /api\/admin\/login/);
+  assert.match(customerSiteAdmin, /expires_in/);
+  assert.match(customerSiteAdmin, /api\/admin\/logout/);
+  assert.match(customerSiteSchema, /CREATE TABLE IF NOT EXISTS admin_sessions/);
+  assert.match(customerSiteReadme, /phiên đăng nhập ngắn hạn/);
+  assert.match(customerSiteReadme, /0002_admin_sessions\.sql/);
+});
+
 test("customer can edit website draft fields and save through authenticated revision endpoint", () => {
   assert.match(api, /websiteConfigMatch/);
   assert.match(api, /UPDATE orders SET preview_text/);
