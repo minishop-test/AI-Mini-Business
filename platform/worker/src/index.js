@@ -131,7 +131,7 @@ async function sendActionEmail(env, recipient, subject, actionUrl, intro) {
       from: env.EMAIL_FROM,
       to: [recipient],
       subject,
-      text: intro + "\\n\\n" + actionUrl + "\\n\\nNếu bạn không thực hiện yêu cầu này, hãy bỏ qua email.",
+      text: intro + "\n\n" + actionUrl + "\n\nNếu bạn không thực hiện yêu cầu này, hãy bỏ qua email.",
     }),
   });
   if (!response.ok) throw new Error("email_delivery_failed");
