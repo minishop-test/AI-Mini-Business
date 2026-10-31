@@ -613,7 +613,19 @@ export default {
             value = value.replace("<title>Cửa hàng của tôi</title>", "<title>"+esc(storeName)+"</title>");
             value = value.replace('<h1 id="storeName">Cửa hàng của tôi</h1>', '<h1 id="storeName">'+esc(storeName)+'</h1>');
             value = value.replace('<p class="muted" id="storeTagline" style="color:#cbd5e1">Sản phẩm và dịch vụ</p>', '<p class="muted" id="storeTagline" style="color:#cbd5e1">'+esc(tagline)+'</p>');
+            value = value.replace("background:#172033;color:white;padding:32px 6%", "background:"+primaryColor+";color:white;padding:32px 6%");
             value = value.replace("background:#2563eb", "background:"+primaryColor);
+            const template = ["minimal","bold","editorial"].includes(config.template) ? config.template : "minimal";
+            const columns = [2,3,4].includes(config.productColumns) ? config.productColumns : 3;
+            const heroImageUrl = typeof config.heroImageUrl === "string" && /^https:\/\//i.test(config.heroImageUrl) && config.heroImageUrl.length <= 2000 ? config.heroImageUrl : "";
+            const heroTitle = clean(config.heroTitle,100);
+            value = value.replace("<body>", '<body class="theme-'+template+'">');
+            value = value.replace("#products{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}", "#products{display:grid;grid-template-columns:repeat("+columns+",minmax(0,1fr));gap:16px}");
+            value = value.replace("</style>", ".theme-bold .card{border-radius:3px;border-width:2px}.theme-editorial header{text-align:center;padding-top:44px;padding-bottom:44px}.theme-minimal .card{border-radius:16px;box-shadow:0 3px 12px #0f172a0b}@media(max-width:600px){#products{grid-template-columns:repeat(2,minmax(0,1fr))}}.store-nav{display:flex;gap:10px;flex-wrap:wrap;padding:12px 6%;background:#fff;border-bottom:1px solid #e4e9f0}.store-nav a{color:"+primaryColor+";text-decoration:none;font-weight:650}.store-hero{max-width:1000px;margin:18px auto;padding:0 16px}.store-hero img{width:100%;max-height:240px;object-fit:cover;border-radius:12px}.store-hero h2{color:"+primaryColor+"}</style>");
+            const pages = Array.isArray(config.pages) ? config.pages.filter(x => typeof x === "string").slice(0,8) : ["Trang chủ","Sản phẩm","Liên hệ"];
+            const nav = '<nav class="store-nav">'+pages.map((p,i)=>'<a href="'+(i===0?"#top":"#products")+'">'+esc(p.slice(0,40))+'</a>').join("")+'</nav>';
+            value = value.replace('<header><h1 id="storeName">', '<div id="top"></div><header><h1 id="storeName">');
+            value = value.replace('</header>\n<main>', '</header>\n'+nav+'\n'+(heroImageUrl?'<section class="store-hero"><img src="'+esc(heroImageUrl)+'" alt="Banner cửa hàng" loading="lazy">'+(heroTitle?'<h2>'+esc(heroTitle)+'</h2>':'')+'</section>':(heroTitle?'<section class="store-hero"><h2>'+esc(heroTitle)+'</h2></section>':''))+'\n<main>');
           }
           files["customer-store/"+name] = strToU8(value);
         }
