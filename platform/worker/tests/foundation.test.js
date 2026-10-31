@@ -286,11 +286,11 @@ test("bundled website template contains isolated customer frontend, API and depl
 });
 
 test("website revisions are limited to the customer's own pending-review order", () => {
-  assert.match(api, /WHERE id = \\? AND user_id = \\? AND service_id = 'website'/);
+  assert.match(api, /WHERE id = \? AND user_id = \? AND service_id = 'website'/);
   assert.match(api, /revisionOrder.status !== "pending_review"/);
-  assert.match(api, /UPDATE orders SET preview_text = \\?[^\\n]*status = 'pending_review'/);
+  assert.match(api, /UPDATE orders SET preview_text = \?[^\n]*status = 'pending_review'/);
   assert.match(api, /INSERT INTO order_revisions/);
-  assert.match(api, /revisionOrder \\? \\{/);
+  assert.match(api, /revisionOrder \? \{/);
   assert.match(customer, /Yêu cầu AI chỉnh sửa website/);
   assert.match(customer, /order_id:o.id/);
   assert.match(customer, /Gửi yêu cầu chỉnh sửa/);
