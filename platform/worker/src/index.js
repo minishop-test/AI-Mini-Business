@@ -454,6 +454,32 @@ export default {
       return json({ orders: rows.results || [] }, 200, env, request);
     }
 
+    const websiteConfigMatch = url.pathname.match(/^\/api\/orders\/([0-9a-f-]{36})\/website-config$/i);
+    if (websiteConfigMatch && request.method === "PUT") {
+      if (!env.DB) return json({ error: "database_not_configured" }, 503, env, request);
+      const user = await currentUser(request, env.DB);
+      if (!user) return json({ error: "not_authenticated" }, 401, env, request);
+      const orderId = websiteConfigMatch[1];
+      const order = await env.DB.prepare("SELECT id,preview_text,status FROM orders WHERE id=? AND user_id=? AND service_id='website' LIMIT 1").bind(orderId,user.id).first();
+      if (!order) return json({ error: "order_not_found" }, 404, env, request);
+      if (order.status !== "pending_review") return json({ error: "revision_locked", message: "Chỉ được chỉnh sửa bản thiết kế trước khi quản trị viên báo giá." }, 409, env, request);
+      const body = await readJson(request);
+      const cfg = body?.website_config;
+      if (!cfg || typeof cfg !== "object" || Array.isArray(cfg)) return json({ error: "invalid_website_config" }, 400, env, request);
+      const clean = (value,max) => typeof value === "string" && value.trim().length <= max ? value.trim() : "";
+      const storeName = clean(cfg.storeName,80), tagline = clean(cfg.tagline,160);
+      const primaryColor = /^#[0-9a-fA-F]{6}$/.test(cfg.primaryColor || "") ? cfg.primaryColor : "";
+      if (!storeName || !tagline || !primaryColor) return json({ error: "invalid_website_fields" },400,env,request);
+      const pages = Array.isArray(cfg.pages) ? cfg.pages.slice(0,8).map(p=>clean(p,40)).filter(Boolean) : [];
+      const products = Array.isArray(cfg.products) ? cfg.products.slice(0,30).map(p=>({name:clean(p?.name,120),description:clean(p?.description,1000),priceVnd:Number.isSafeInteger(p?.priceVnd)&&p.priceVnd>=0&&p.priceVnd<=1000000000?p.priceVnd:null,imageUrl:typeof p?.imageUrl==="string"&&/^https:\/\//i.test(p.imageUrl)&&p.imageUrl.length<=2000?p.imageUrl:null})).filter(p=>p.name&&p.priceVnd!==null) : [];
+      const normalized = {storeName,tagline,primaryColor,pages,products};
+      const serialized = JSON.stringify(normalized);
+      if (serialized.length > 20000) return json({error:"website_config_too_large"},413,env,request);
+      const updated = await env.DB.prepare("UPDATE orders SET preview_text=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=? AND service_id='website' AND status='pending_review'").bind(serialized,orderId,user.id).run();
+      if (!(updated.meta?.changes > 0)) return json({error:"revision_locked",message:"Đơn hàng đã thay đổi trạng thái. Hãy tải lại đơn hàng."},409,env,request);
+      await env.DB.prepare("INSERT INTO order_revisions (id,order_id,user_id,request_text,preview_text) VALUES (?,?,?,?,?)").bind(crypto.randomUUID(),orderId,user.id,"Chỉnh sửa trực tiếp bằng trình chỉnh sửa website",serialized).run();
+      return json({ok:true,order_id:orderId,website_config:normalized},200,env,request);
+    }
     const packageMatch = url.pathname.match(/^\/api\/orders\/package\/([0-9a-f-]{36})$/i);
     if (packageMatch && request.method === "GET") {
       if (!env.DB || !env.PACKAGES) return json({ error: "package_storage_not_configured" }, 503, env, request);
