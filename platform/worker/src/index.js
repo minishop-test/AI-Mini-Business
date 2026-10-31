@@ -452,6 +452,25 @@ export default {
       return json({ orders: rows.results || [] }, 200, env, request);
     }
 
+    const packageMatch = url.pathname.match(/^\/api\/orders\/package\/([0-9a-f-]{36})$/i);
+    if (packageMatch && request.method === "GET") {
+      if (!env.DB || !env.PACKAGES) return json({ error: "package_storage_not_configured" }, 503, env, request);
+      const user = await currentUser(request, env.DB);
+      if (!user) return json({ error: "not_authenticated" }, 401, env, request);
+      const order = await env.DB.prepare("SELECT package_key, service_id, status FROM orders WHERE id = ? AND user_id = ? LIMIT 1")
+        .bind(packageMatch[1], user.id).first();
+      if (!order) return json({ error: "order_not_found" }, 404, env, request);
+      if (order.status !== "delivered" || !order.package_key) return json({ error: "package_not_ready", message: "File chỉ tải được sau khi quản trị viên đánh dấu đơn đã bàn giao." }, 403, env, request);
+      const object = await env.PACKAGES.get(order.package_key);
+      if (!object) return json({ error: "package_missing" }, 404, env, request);
+      return new Response(object.body, { status: 200, headers: {
+        ...corsHeaders(env, request), "content-type": "application/zip",
+        "content-disposition": 'attachment; filename="ai-mini-business-website.zip"',
+        "content-length": String(object.size), "cache-control": "private, no-store",
+        "x-content-type-options": "nosniff",
+      }});
+    }
+
     if (url.pathname.startsWith("/api/quota/")) {
       if (!env.DB) return json({ error: "database_not_configured" }, 503, env, request);
       if (request.method === "POST" && !requireTrustedOrigin(request, env)) {
@@ -532,6 +551,32 @@ export default {
       if (user.role !== "admin") return json({ error: "forbidden" }, 403, env, request);
       if (request.method !== "GET" && !(await rateLimit(env.DB, request, "admin-write", user.id, 30, 60))) {
         return json({ error: "rate_limited", message: "Quá nhiều thao tác quản trị. Vui lòng thử lại sau một phút." }, 429, env, request, { "retry-after": "60" });
+      }
+
+      if (url.pathname === "/api/admin/order-package" && request.method === "POST") {
+        if (!env.PACKAGES) return json({ error: "package_storage_not_configured", message: "Chưa cấu hình kho R2 cho file bàn giao." }, 503, env, request);
+        const orderId = url.searchParams.get("order_id") || "";
+        if (!/^[0-9a-f-]{36}$/i.test(orderId)) return json({ error: "invalid_order_id" }, 400, env, request);
+        const order = await env.DB.prepare("SELECT id, user_id, service_id, status FROM orders WHERE id = ? LIMIT 1").bind(orderId).first();
+        if (!order) return json({ error: "order_not_found" }, 404, env, request);
+        if (!["paid", "processing"].includes(order.status)) return json({ error: "payment_required", message: "Chỉ tải gói bàn giao lên sau khi đơn đã được xác nhận thanh toán." }, 409, env, request);
+        const declaredLength = Number(request.headers.get("content-length") || 0);
+        if (declaredLength < 22 || declaredLength > 10 * 1024 * 1024) return json({ error: "invalid_package_size", message: "ZIP phải có dung lượng từ 22 byte đến 10 MB." }, 413, env, request);
+        const type = request.headers.get("content-type") || "";
+        if (!type.toLowerCase().includes("application/zip") && !type.toLowerCase().includes("application/octet-stream")) return json({ error: "invalid_package_type" }, 415, env, request);
+        const bytes = await request.arrayBuffer();
+        if (bytes.byteLength < 22 || bytes.byteLength > 10 * 1024 * 1024) return json({ error: "invalid_package_size" }, 413, env, request);
+        const view = new DataView(bytes);
+        if (view.getUint32(0, true) !== 0x04034b50 || view.getUint32(bytes.byteLength - 22, true) !== 0x06054b50) {
+          return json({ error: "invalid_zip_file", message: "File tải lên không có cấu trúc ZIP hợp lệ." }, 400, env, request);
+        }
+        const key = "orders/" + orderId + "/customer-store.zip";
+        await env.PACKAGES.put(key, bytes, { httpMetadata: { contentType: "application/zip", cacheControl: "private, no-store" }, customMetadata: { orderId, userId: order.user_id } });
+        const deliveryUrl = new URL("/api/orders/package/" + orderId, env.PUBLIC_SITE_URL || env.ALLOWED_ORIGIN).toString();
+        await env.DB.prepare("UPDATE orders SET package_key = ?, package_size = ?, package_uploaded_at = CURRENT_TIMESTAMP, delivery_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+          .bind(key, bytes.byteLength, deliveryUrl, orderId).run();
+        await audit(env.DB, user.id, "order_package_uploaded", orderId, { bytes: bytes.byteLength });
+        return json({ ok: true, order_id: orderId, package_size: bytes.byteLength, delivery_url: deliveryUrl }, 200, env, request);
       }
 
       if (url.pathname === "/api/admin/customers" && request.method === "GET") {
