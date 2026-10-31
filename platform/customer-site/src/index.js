@@ -183,12 +183,19 @@ export default {
       const productMatch = url.pathname.match(/^\/api\/admin\/products\/([0-9a-f-]{36})$/i);
       if (productMatch && request.method === "PATCH") {
         if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
-        const data = await bodyJson(request, 1000);
-        if (!data || typeof data.active !== "boolean") return json({ error: "invalid_product_status" }, 400, request, env);
-        const result = await env.DB.prepare("UPDATE products SET active=? WHERE id=?").bind(data.active ? 1 : 0, productMatch[1]).run();
-        if (!result.meta?.changes) return json({ error: "product_not_found" }, 404, request, env);
-        await writeAudit(env, data.active ? "product.activated" : "product.hidden", "product", productMatch[1], { active: data.active });
-        return json({ ok: true, active: data.active }, 200, request, env);
+        const data = await bodyJson(request, 5000);
+        if (!data || typeof data !== "object" || Array.isArray(data)) return json({ error: "invalid_product" }, 400, request, env);
+        const current = await env.DB.prepare("SELECT id,name,description,price_vnd,image_url,active FROM products WHERE id=?").bind(productMatch[1]).first();
+        if (!current) return json({ error: "product_not_found" }, 404, request, env);
+        const next = { name: current.name, description: current.description || "", price_vnd: current.price_vnd, image_url: current.image_url, active: current.active === 1 };
+        if ("name" in data) { if (typeof data.name !== "string" || !data.name.trim() || data.name.length > 160) return json({ error: "invalid_product_name" }, 400, request, env); next.name = data.name.trim(); }
+        if ("description" in data) { if (typeof data.description !== "string" || data.description.length > 3000) return json({ error: "invalid_product_description" }, 400, request, env); next.description = data.description.trim(); }
+        if ("price_vnd" in data) { if (!Number.isSafeInteger(data.price_vnd) || data.price_vnd < 0 || data.price_vnd > 100000000000) return json({ error: "invalid_product_price" }, 400, request, env); next.price_vnd = data.price_vnd; }
+        if ("image_url" in data) { if (data.image_url !== null && (typeof data.image_url !== "string" || data.image_url.length > 2000 || !/^https:\/\//i.test(data.image_url))) return json({ error: "invalid_product_image" }, 400, request, env); next.image_url = data.image_url || null; }
+        if ("active" in data) { if (typeof data.active !== "boolean") return json({ error: "invalid_product_status" }, 400, request, env); next.active = data.active; }
+        await env.DB.prepare("UPDATE products SET name=?,description=?,price_vnd=?,image_url=?,active=? WHERE id=?").bind(next.name,next.description,next.price_vnd,next.image_url,next.active?1:0,productMatch[1]).run();
+        await writeAudit(env, "product.updated", "product", productMatch[1], { fields: Object.keys(data) });
+        return json({ ok: true, product: next }, 200, request, env);
       }
 
       const statusMatch = url.pathname.match(/^\/api\/admin\/orders\/([0-9a-f-]{36})$/i);
