@@ -57,7 +57,7 @@ async function loadAll(){
    const existing=tr.nextElementSibling;if(existing&&existing.dataset.detailFor===o.id){existing.remove();details.textContent="Chi tiết";return;}
    const row=document.createElement("tr");row.dataset.detailFor=o.id;const cell=document.createElement("td");cell.colSpan=6;
    const panel=document.createElement("div");panel.className="order-detail";
-   const fields=[["Mã đơn",o.id],["Điện thoại",o.customer_phone||"Chưa cung cấp"],["Đơn giá",money(o.unit_price_vnd)],["Số lượng",String(o.quantity)],["Ghi chú",o.note||"Không có"]];
+   const fields=[["Mã đơn",o.id],["Đơn giá",money(o.unit_price_vnd)],["Số lượng",String(o.quantity)],["Ghi chú",o.note||"Không có"]];
    fields.forEach(([label,value])=>{const p=document.createElement("p"),strong=document.createElement("strong");strong.textContent=label+": ";p.append(strong,document.createTextNode(value));panel.append(p);});
    cell.append(panel);row.append(cell);tr.after(row);details.textContent="Ẩn chi tiết";
   });
@@ -93,7 +93,7 @@ $("productForm").addEventListener("submit",async e=>{e.preventDefault();const bt
 $("exportOrders").addEventListener("click",async()=>{
  try{
   const data=await api("/api/admin/orders");
-  const columns=["created_at","customer_name","customer_email","customer_phone","product_name_snapshot","quantity","unit_price_vnd","total_vnd","note","status"];
+  const columns=["created_at","customer_name","customer_email","product_name_snapshot","quantity","unit_price_vnd","total_vnd","note","status"];
   const csv=[columns.join(","),...(data.orders||[]).map(o=>columns.map(k=>{const v=String(o[k]??"").replace(/"/g,'""');return '"'+v+'"';}).join(","))].join("\\r\\n");
   const blob=new Blob(["\\uFEFF"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
   a.href=url;a.download="don-hang.csv";a.click();URL.revokeObjectURL(url);notify("Đã xuất danh sách đơn hàng.");
