@@ -39,6 +39,14 @@ button.secondary{background:#e9eef6;color:#1e293b}button:disabled{opacity:.5;cur
 <p class="muted">Mật khẩu cần ít nhất 12 ký tự. Không dùng mật khẩu của tài khoản quan trọng khác.</p>
 <button id="authSubmit" type="submit">Đăng nhập</button>
 </form>
+<div class="row" style="margin-top:12px">
+  <button id="resendVerify" class="secondary" type="button">Gửi lại email xác minh</button>
+  <button id="forgotPassword" class="secondary" type="button">Quên mật khẩu?</button>
+</div>
+<form id="resetForm" class="hidden" style="margin-top:14px">
+  <label for="newPassword">Mật khẩu mới</label><input id="newPassword" type="password" minlength="12" maxlength="128" required>
+  <button type="submit">Đặt lại mật khẩu</button>
+</form>
 </section>
 <section class="card hidden" id="accountCard">
 <div class="row"><div><h2 id="welcome">Tài khoản</h2><div class="muted">Đăng nhập thành công</div></div><button id="logout" class="secondary">Đăng xuất</button></div>
@@ -100,13 +108,38 @@ async function enterAccount(user){
  currentUser=user;$("authCard").classList.add("hidden");$("accountCard").classList.remove("hidden");$("requestCard").classList.remove("hidden");$("ordersCard").classList.remove("hidden");$("welcome").textContent=user.email;
  await Promise.all([refreshQuota(),refreshOrders()]);
 }
+$("resendVerify").addEventListener("click",async()=>{
+ try{const data=await api("/api/auth/resend-verification",{method:"POST",body:JSON.stringify({email:$("email").value})});notice(data.message,"ok");}
+ catch(e){notice("Không gửi được email: "+e.message,"error");}
+});
+$("forgotPassword").addEventListener("click",async()=>{
+ try{const data=await api("/api/auth/forgot-password",{method:"POST",body:JSON.stringify({email:$("email").value})});notice(data.message,"ok");}
+ catch(e){notice("Không gửi được hướng dẫn: "+e.message,"error");}
+});
+$("resetForm").addEventListener("submit",async e=>{
+ e.preventDefault();const token=new URLSearchParams(location.search).get("reset");
+ try{const data=await api("/api/auth/reset-password",{method:"POST",body:JSON.stringify({token,password:$("newPassword").value})});notice(data.message,"ok");$("resetForm").classList.add("hidden");history.replaceState(null,"",location.pathname);}
+ catch(err){notice("Không đặt lại được mật khẩu: "+err.message,"error");}
+});
+async function handleEmailLinks(){
+ const params=new URLSearchParams(location.search);
+ const verifyToken=params.get("verify");
+ if(verifyToken){
+  try{const data=await api("/api/auth/verify-email",{method:"POST",body:JSON.stringify({token:verifyToken})});notice(data.message,"ok");}
+  catch(e){notice("Không xác minh được email: "+e.message,"error");}
+  params.delete("verify");history.replaceState(null,"",location.pathname+(params.toString()?"?"+params.toString():""));
+ }
+ if(params.has("reset")){$("resetForm").classList.remove("hidden");notice("Nhập mật khẩu mới. Liên kết đặt lại chỉ dùng được một lần.","ok");}
+}
 $("showLogin").addEventListener("click",()=>setMode("login"));
 $("showRegister").addEventListener("click",()=>setMode("register"));
 $("authForm").addEventListener("submit",async e=>{
  e.preventDefault();$("authSubmit").disabled=true;
  try{
   const data=await api("/api/auth/"+authMode,{method:"POST",body:JSON.stringify({email:$("email").value,password:$("password").value})});
-  $("password").value="";await enterAccount(data.user);notice(authMode==="login"?"Đăng nhập thành công.":"Tạo tài khoản thành công.","ok");
+  $("password").value="";
+  if(data.verification_required){notice(data.message,"ok");return;}
+  await enterAccount(data.user);notice("Đăng nhập thành công.","ok");
  }catch(err){notice("Không thể xác thực: "+err.message,"error");}
  finally{$("authSubmit").disabled=false;}
 });
@@ -127,6 +160,6 @@ $("saveApi").addEventListener("click",()=>{localStorage.setItem("aib_customer_ap
 $("checkApi").addEventListener("click",async()=>{try{const data=await api("/api/health");notice("Kết nối thành công: "+data.service,"ok");}catch(e){notice("Không kết nối được: "+e.message,"error");}});
 $("apiBase").value=localStorage.getItem("aib_customer_api")||"";
 setMode("login");
-(async()=>{if(!apiRoot())return;try{const data=await api("/api/auth/me");await enterAccount(data.user);notice("Đã khôi phục phiên đăng nhập.","ok");}catch(e){} })();
+(async()=>{await handleEmailLinks();if(!apiRoot())return;try{const data=await api("/api/auth/me");await enterAccount(data.user);notice("Đã khôi phục phiên đăng nhập.","ok");}catch(e){} })();
 </script>
 </body></html>
