@@ -611,6 +611,18 @@ export default {
         return json(await adminOverview(env.DB), 200, env, request);
       }
 
+      if (url.pathname === "/api/admin/budget" && request.method === "POST") {
+        const body = await readJson(request);
+        if (!Number.isSafeInteger(body?.daily_budget_units) || body.daily_budget_units < 0 || body.daily_budget_units > 100000000) {
+          return json({ error: "invalid_budget", message: "Ngân sách nội bộ phải từ 0 đến 100.000.000 units/ngày." }, 400, env, request);
+        }
+        await env.DB.prepare(
+          "INSERT INTO platform_controls (control_key, control_value, updated_at) VALUES ('daily_budget_units', ?, CURRENT_TIMESTAMP) ON CONFLICT(control_key) DO UPDATE SET control_value = excluded.control_value, updated_at = CURRENT_TIMESTAMP"
+        ).bind(String(body.daily_budget_units)).run();
+        await audit(env.DB, user.id, "daily_budget_changed", null, { daily_budget_units: body.daily_budget_units });
+        return json({ ok: true, daily_budget_units: body.daily_budget_units }, 200, env, request);
+      }
+
       if (url.pathname === "/api/admin/pause" && request.method === "POST") {
         const body = await readJson(request);
         if (typeof body?.paused !== "boolean") {
@@ -629,11 +641,24 @@ export default {
         if (!validIds.includes(body?.service_id) || typeof body?.enabled !== "boolean") {
           return json({ error: "invalid_input" }, 400, env, request);
         }
+        const costUnits = body.estimated_cost_units_per_use;
+        const dailyLimit = body.daily_request_limit;
+        if ((costUnits !== undefined && (!Number.isSafeInteger(costUnits) || costUnits < 1 || costUnits > 1000000)) ||
+            (dailyLimit !== undefined && (!Number.isSafeInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 10000))) {
+          return json({ error: "invalid_cost_controls", message: "Chi phí nội bộ phải từ 1 đến 1.000.000 units; giới hạn ngày từ 1 đến 10.000 lượt." }, 400, env, request);
+        }
         await env.DB.prepare(
-          "UPDATE service_settings SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE service_id = ?"
-        ).bind(body.enabled ? 1 : 0, body.service_id).run();
-        await audit(env.DB, user.id, "service_enabled_changed", body.service_id, { enabled: body.enabled });
-        return json({ ok: true, service_id: body.service_id, enabled: body.enabled }, 200, env, request);
+          "UPDATE service_settings SET enabled = ?, " +
+          "estimated_cost_units_per_use = COALESCE(?, estimated_cost_units_per_use), " +
+          "daily_request_limit = COALESCE(?, daily_request_limit), updated_at = CURRENT_TIMESTAMP WHERE service_id = ?"
+        ).bind(body.enabled ? 1 : 0, costUnits ?? null, dailyLimit ?? null, body.service_id).run();
+        await audit(env.DB, user.id, "service_controls_changed", body.service_id, {
+          enabled: body.enabled,
+          estimated_cost_units_per_use: costUnits ?? null,
+          daily_request_limit: dailyLimit ?? null,
+        });
+        return json({ ok: true, service_id: body.service_id, enabled: body.enabled,
+          estimated_cost_units_per_use: costUnits ?? null, daily_request_limit: dailyLimit ?? null }, 200, env, request);
       }
 
       if (url.pathname === "/api/admin/usage" && request.method === "GET") {
