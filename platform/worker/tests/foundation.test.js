@@ -200,8 +200,7 @@ test("customer ZIP builder packages all deployable source files without platform
     assert.ok(zipBuilder.includes('"'+file+'"'), "ZIP must include "+file);
   }
   assert.match(zipBuilder, /zipSync/);
-  assert.match(zipBuilder, /ADMIN_API_TOKEN/);
-  assert.doesNotMatch(zipBuilder, /RESEND_API_KEY|CLOUDFLARE_API_TOKEN/);
+  assert.doesNotMatch(zipBuilder, /ADMIN_API_TOKEN|RESEND_API_KEY|CLOUDFLARE_API_TOKEN|Bearer\\s/);
   assert.equal(customerPackage.scripts["build:zip"], "node tools/build-zip.mjs");
   assert.match(customerPackage.dependencies.fflate, /0\.8/);
 });
