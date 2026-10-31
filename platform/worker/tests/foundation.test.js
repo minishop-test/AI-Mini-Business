@@ -355,7 +355,7 @@ test("customer storefront records admin mutations and exposes a protected read-o
   assert.match(customerSiteApi, /INSERT INTO admin_audit_log/);
   assert.ok(customerSiteApi.includes('"product.updated"'));
   assert.ok(customerSiteApi.includes('"product.updated"'));
-  assert.match(customerSiteApi, /order\\.payment_delivery_updated/);
+  assert.ok(customerSiteApi.includes('"order.payment_delivery_updated"'));
   assert.match(customerSiteApi, /await isAdmin\(request, env\)/);
   assert.match(customerSiteSchema, /CREATE TABLE IF NOT EXISTS admin_audit_log/);
   assert.match(customerAdmin, /id="auditLog"/);
@@ -376,7 +376,7 @@ test("customer order admin separates payment confirmation from delivery", () => 
   assert.match(customerSiteSchema, /payment_status TEXT NOT NULL DEFAULT 'pending'/);
   assert.match(customerSiteSchema, /delivery_status TEXT NOT NULL DEFAULT 'pending'/);
   assert.match(customerSiteApi, /payment_required_before_delivery/);
-  assert.match(customerSiteApi, /order\.payment_delivery_updated/);
+  assert.ok(customerSiteApi.includes('"order.payment_delivery_updated"'));
   assert.match(customerAdmin, /payment_status:payment\.value,delivery_status:delivery\.value/);
   assert.match(customerAdmin, /Chưa thanh toán/);
   assert.match(customerAdmin, /Chưa bàn giao/);
