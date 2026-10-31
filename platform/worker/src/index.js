@@ -734,6 +734,12 @@ export default {
         if (nextStatus === "delivered" && !(body.delivery_url || existing.delivery_url)) {
           return json({ error: "delivery_url_required", message: "Cần có đường dẫn HTTPS trước khi đánh dấu đã bàn giao." }, 400, env, request);
         }
+        if (nextStatus === "delivered") {
+          const deliveryCheck = await env.DB.prepare("SELECT service_id, package_key FROM orders WHERE id = ?").bind(orderId).first();
+          if (deliveryCheck?.service_id === "website" && !deliveryCheck.package_key) {
+            return json({ error: "website_package_required", message: "Đơn website phải có file ZIP đã lưu trong kho riêng tư trước khi bàn giao." }, 409, env, request);
+          }
+        }
         const paymentReference = typeof body.payment_reference === "string" ? body.payment_reference.slice(0, 200) : null;
         const updateResult = await env.DB.prepare(
           "UPDATE orders SET status = ?, amount_vnd = CASE WHEN ? = 'awaiting_payment' THEN ? ELSE amount_vnd END, " +
