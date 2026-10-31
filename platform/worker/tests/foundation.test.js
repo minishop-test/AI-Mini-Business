@@ -135,6 +135,14 @@ test("AI website generation returns a validated configuration and bounded produc
   assert.match(api, /max_tokens: isWebsite \? 900 : 512/);
 });
 
+test("AI website generation creates a pending-review order with the generated JSON preview", () => {
+  assert.match(api, /INSERT INTO orders \(id, user_id, service_id, status, customer_brief, preview_text, amount_vnd\)/);
+  assert.match(api, /'website', 'pending_review'/);
+  assert.match(api, /order: websiteOrder \? \{ id: websiteOrder.id, status: "pending_review" \} : null/);
+  assert.match(customer, /data\.order\?\.id/);
+  assert.match(customer, /Promise\.all\(\[refreshQuota\(\),refreshOrders\(\)\]\)/);
+});
+
 test("customer dashboard exposes website generation and a JSON config download", () => {
   assert.match(customer, /id="websiteDraftForm"/);
   assert.match(customer, /service_id:"website"/);
