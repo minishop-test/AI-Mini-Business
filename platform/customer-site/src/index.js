@@ -197,6 +197,62 @@ export default {
         return json({ ok: true, product: next }, 200, request, env);
       }
 
+      const uploadMatch = url.pathname.match(/^\\/api\\/admin\\/orders\\/([0-9a-f-]{36})\\/delivery-file$/i);
+      if (uploadMatch && request.method === "POST") {
+        if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
+        if (!env.DELIVERIES) return json({ error: "private_storage_not_configured" }, 503, request, env);
+        const order = await env.DB.prepare("SELECT id FROM orders WHERE id=?").bind(uploadMatch[1]).first();
+        if (!order) return json({ error: "order_not_found" }, 404, request, env);
+        const form = await request.formData();
+        const file = form.get("file");
+        if (!(file instanceof File) || file.size < 1 || file.size > 20 * 1024 * 1024) return json({ error: "invalid_file_size" }, 400, request, env);
+        const allowed = new Set(["application/pdf","text/plain","application/zip","application/vnd.openxmlformats-officedocument.wordprocessingml.document","image/png","image/jpeg","image/svg+xml"]);
+        if (!allowed.has(file.type)) return json({ error: "unsupported_file_type" }, 400, request, env);
+        const safeName = (file.name || "delivery-file").normalize("NFKC").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 150) || "delivery-file";
+        const objectKey = "orders/" + uploadMatch[1] + "/" + id();
+        await env.DELIVERIES.put(objectKey, await file.arrayBuffer(), { httpMetadata: { contentType: file.type, contentDisposition: "attachment; filename=\"" + safeName + "\" ", cacheControl: "private, no-store" } });
+        await env.DB.prepare("INSERT INTO order_deliveries (order_id,object_key,file_name,content_type,size_bytes) VALUES (?,?,?,?,?) ON CONFLICT(order_id) DO UPDATE SET object_key=excluded.object_key,file_name=excluded.file_name,content_type=excluded.content_type,size_bytes=excluded.size_bytes,uploaded_at=CURRENT_TIMESTAMP")
+          .bind(uploadMatch[1],objectKey,safeName,file.type,file.size).run();
+        await writeAudit(env, "order.delivery_file_uploaded", "order", uploadMatch[1], { file_name: safeName, size_bytes: file.size });
+        return json({ ok: true, file_name: safeName, size_bytes: file.size }, 201, request, env);
+      }
+
+      const linkMatch = url.pathname.match(/^\\/api\\/admin\\/orders\\/([0-9a-f-]{36})\\/delivery-link$/i);
+      if (linkMatch && request.method === "POST") {
+        if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
+        const order = await env.DB.prepare("SELECT payment_status,delivery_status FROM orders WHERE id=?").bind(linkMatch[1]).first();
+        if (!order) return json({ error: "order_not_found" }, 404, request, env);
+        if (order.payment_status !== "paid" || order.delivery_status !== "delivered") return json({ error: "payment_and_delivery_required" }, 409, request, env);
+        const file = await env.DB.prepare("SELECT file_name FROM order_deliveries WHERE order_id=?").bind(linkMatch[1]).first();
+        if (!file) return json({ error: "delivery_file_missing" }, 404, request, env);
+        const rawToken = [...crypto.getRandomValues(new Uint8Array(32))].map(byte => byte.toString(16).padStart(2,"0")).join("");
+        const tokenHash = await hashSessionToken(rawToken);
+        await env.DB.prepare("INSERT INTO delivery_download_tokens (token_hash,order_id,expires_at) VALUES (?,?,datetime('now','+24 hours'))").bind(tokenHash,linkMatch[1]).run();
+        await writeAudit(env, "order.delivery_link_created", "order", linkMatch[1], { expires_in_hours: 24 });
+        return json({ ok: true, file_name: file.file_name, download_url: new URL("/api/download/" + rawToken, url.origin).toString(), expires_in_hours: 24 }, 201, request, env);
+      }
+
+      const downloadMatch = url.pathname.match(/^\\/api\\/download\\/([a-f0-9]{64})$/i);
+      if (downloadMatch && request.method === "GET") {
+        if (!env.DELIVERIES) return json({ error: "private_storage_not_configured" }, 503, request, env);
+        const tokenHash = await hashSessionToken(downloadMatch[1]);
+        const consumed = await env.DB.prepare("UPDATE delivery_download_tokens SET used_at=CURRENT_TIMESTAMP WHERE token_hash=? AND used_at IS NULL AND expires_at>CURRENT_TIMESTAMP RETURNING order_id")
+          .bind(tokenHash).first();
+        if (!consumed) return json({ error: "download_link_invalid_or_used" }, 410, request, env);
+        const order = await env.DB.prepare("SELECT payment_status,delivery_status FROM orders WHERE id=?").bind(consumed.order_id).first();
+        if (!order || order.payment_status !== "paid" || order.delivery_status !== "delivered") return json({ error: "delivery_not_authorized" }, 403, request, env);
+        const file = await env.DB.prepare("SELECT object_key,file_name,content_type FROM order_deliveries WHERE order_id=?").bind(consumed.order_id).first();
+        if (!file) return json({ error: "delivery_file_missing" }, 404, request, env);
+        const object = await env.DELIVERIES.get(file.object_key);
+        if (!object) return json({ error: "delivery_file_missing" }, 404, request, env);
+        const safeName = file.file_name.replace(/["\\\\\r\n]/g, "_");
+        return new Response(object.body, { status: 200, headers: {
+          "content-type": file.content_type, "content-length": String(object.size),
+          "content-disposition": "attachment; filename=\"" + safeName + "\"",
+          "cache-control": "private, no-store", "x-content-type-options": "nosniff"
+        }});
+      }
+
       const statusMatch = url.pathname.match(/^\/api\/admin\/orders\/([0-9a-f-]{36})$/i);
       if (statusMatch && request.method === "PATCH") {
         if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
