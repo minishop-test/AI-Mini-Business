@@ -378,6 +378,18 @@ test("private delivery uploads reject oversized multipart requests before parsin
   assert.match(customerSiteApi, /20 \* 1024 \* 1024/);
 });
 
+test("order cannot be marked delivered until a private delivery file exists", () => {
+  assert.match(customerSiteApi, /delivery_file_required_before_completion/);
+  assert.match(customerSiteApi, /SELECT order_id FROM order_deliveries WHERE order_id=\?/);
+});
+
+test("download token is consumed only after authorization and private object retrieval", () => {
+  const tokenRead = customerSiteApi.indexOf("SELECT order_id FROM delivery_download_tokens");
+  const objectRead = customerSiteApi.indexOf("env.DELIVERIES.get(file.object_key)", tokenRead);
+  const consume = customerSiteApi.indexOf("UPDATE delivery_download_tokens SET used_at=CURRENT_TIMESTAMP", tokenRead);
+  assert.ok(tokenRead >= 0 && objectRead > tokenRead && consume > objectRead);
+});
+
 test("customer order admin separates payment confirmation from delivery", () => {
   assert.match(customerSiteSchema, /payment_status TEXT NOT NULL DEFAULT 'pending'/);
   assert.match(customerSiteSchema, /delivery_status TEXT NOT NULL DEFAULT 'pending'/);
