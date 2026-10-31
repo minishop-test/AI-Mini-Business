@@ -372,6 +372,17 @@ test("customer admin dashboard provides local product and order search fields", 
   assert.match(customerAdmin, /toLocaleLowerCase\("vi"\)/);
 });
 
+test("customer order admin separates payment confirmation from delivery", () => {
+  assert.match(customerSiteSchema, /payment_status TEXT NOT NULL DEFAULT 'pending'/);
+  assert.match(customerSiteSchema, /delivery_status TEXT NOT NULL DEFAULT 'pending'/);
+  assert.match(customerSiteApi, /payment_required_before_delivery/);
+  assert.match(customerSiteApi, /order\.payment_delivery_updated/);
+  assert.match(customerAdmin, /payment_status:payment\.value,delivery_status:delivery\.value/);
+  assert.match(customerAdmin, /Chưa thanh toán/);
+  assert.match(customerAdmin, /Chưa bàn giao/);
+  assert.match(customerSiteReadme, /0004_payment_delivery\.sql/);
+});
+
 test("customer storefront and API do not collect or expose customer phone numbers", () => {
   assert.doesNotMatch(customerSiteHtml, /customerPhone|customer_phone/);
   assert.doesNotMatch(customerAdmin, /customer_phone|Điện thoại/);
