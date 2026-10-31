@@ -15,11 +15,12 @@ This is a development foundation, not a production-ready service.
 - `GET /api/admin/usage`: admin-only usage-event aggregates.
 - `POST /api/admin/pause`: admin-only global AI pause setting.
 - `POST /api/admin/budget`: admin-only daily internal budget configuration.
+- `POST /api/admin/ai-generation`: admin-only on/off switch for the gated AI generation test.
 - `POST /api/admin/service`: admin-only service enable/disable and per-service estimated cost/daily request caps.
 - `POST /api/admin/service`: admin-only service enable/disable.
 - `GET /api/quota/me`: customer quota snapshot by service.
 - `POST /api/quota/reserve`: reserves one registered free use when the service is enabled, the global pause is off, the customer has remaining quota, and the daily budget permits it. This does not start AI generation.
-- `POST /api/generate`: always disabled; no AI provider is called.
+- `POST /api/generate`: gated Workers AI test for `business-content` only. Requires the D1 kill switch `ai_generation_enabled=true`, global pause off, service enabled, authenticated user, free quota, daily service cap, and global budget.
 
 Authentication uses PBKDF2-SHA-256 password hashes with per-user salts and random session tokens stored as SHA-256 hashes. Session cookies are HttpOnly, Secure, SameSite=Lax.
 
@@ -32,6 +33,7 @@ Authentication uses PBKDF2-SHA-256 password hashes with per-user salts and rando
 6. `migrations/0006_api_rate_limits.sql`
 7. `migrations/0007_email_verification_password_reset.sql`
 8. `migrations/0008_service_cost_budgets.sql`
+9. `migrations/0009_ai_generation_control.sql`
 
 Bind the database as `DB`.
 
@@ -48,7 +50,7 @@ The folder includes `wrangler.toml` and `package.json`.
 
 For cookie-based login, use a custom domain arrangement on the same registrable domain, for example website `https://www.example.com` and API `https://api.example.com`. A Pages `.pages.dev` frontend calling a Worker `.workers.dev` API is cross-site and may have session cookies blocked by browser privacy settings. Configure CORS `ALLOWED_ORIGIN` to the exact frontend origin. Do not use wildcard origins.
 
-The admin page is at `/platform/admin/`; the customer page is at `/platform/customer/`. These static files are served by the same Pages site as the root `index.html`.
+The admin page is at `/platform/admin/`; the customer page is at `/platform/customer/`. The customer page includes a gated business-content draft form. These static files are served by the same Pages site as the root `index.html`.
 
 ## Configure the first administrator
 Registration always creates a customer. There is intentionally no public admin-registration route.
@@ -111,3 +113,12 @@ The initial per-use estimates and daily service request caps are conservative co
 An admin can update the global budget using `POST /api/admin/budget` with `{"daily_budget_units":10000}`. The admin service endpoint accepts optional `estimated_cost_units_per_use` and `daily_request_limit` values alongside `service_id` and `enabled`. Values are validated server-side. Budget reservation checks the per-service daily cap and global daily budget before inserting usage rows.
 
 These units are internal guardrail weights only. They do not claim to predict exact Cloudflare AI Neurons, image API charges, CPU, or storage. AI generation remains disabled until provider-specific metering, refunds/reconciliation, and runtime tests are complete.
+
+## Gated Workers AI business-content test (migration 0009)
+The Worker has an AI binding in `wrangler.toml` (`[ai] binding = "AI"`) and uses Cloudflare's `@cf/meta/llama-3.2-1b-instruct` model for a first Vietnamese business-content draft test. The model is text-only; it does not create logos, videos, websites, or ZIP files.
+
+The feature is OFF by default. Migration 0009 inserts `ai_generation_enabled=false`. An administrator must explicitly enable the feature through `POST /api/admin/ai-generation` with `{"enabled":true}`, after applying migration 0009 and verifying account-level Workers AI limits and billing settings. To disable it immediately, send `{"enabled":false}`; the separate global AI pause remains an additional gate.
+
+The endpoint only accepts `business-content`, caps the brief at 4,000 characters and output at 512 tokens, rate-limits a user to 3 attempts/hour, reserves the user's registered free quota and daily budget before inference, records provider/model and output in D1, and releases the reservation if inference fails. These internal budget units are placeholders and do not equal Cloudflare's billed token usage. The first runtime tests must be performed by the owner with a low-risk test account while monitoring the Cloudflare dashboard. Do not enable paid billing or automatic overages as part of this step.
+
+Cloudflare documents this model and its `env.AI.run()` binding here: https://developers.cloudflare.com/ai/models/@cf/meta/llama-3.2-1b-instruct/
