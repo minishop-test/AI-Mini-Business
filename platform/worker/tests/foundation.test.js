@@ -9,6 +9,7 @@ const customerSiteApi = await readFile(new URL("../../customer-site/src/index.js
 const customerSiteHtml = await readFile(new URL("../../customer-site/site/index.html", import.meta.url), "utf8");
 const customerSiteSchema = await readFile(new URL("../../customer-site/schema.sql", import.meta.url), "utf8");
 const customerSiteReadme = await readFile(new URL("../../customer-site/README.md", import.meta.url), "utf8");
+const customerAdmin = await readFile(new URL("../../customer-site/site/admin.html", import.meta.url), "utf8");
 const migrations = await Promise.all(
   Array.from({ length: 9 }, (_, i) =>
     readFile(new URL(`../migrations/${String(i + 1).padStart(4, "0")}_${[
@@ -173,4 +174,21 @@ test("customer starter documents independent deployment and missing production f
   assert.match(customerSiteReadme, /D1 database/);
   assert.match(customerSiteReadme, /ADMIN_API_TOKEN/);
   assert.match(customerSiteReadme, /chưa phải nền tảng thương mại điện tử production-ready/);
+});
+
+test("customer site has a real admin dashboard for products and orders", () => {
+  assert.match(customerSiteHtml, /admin\.html/);
+  assert.match(customerSiteApi, /SELECT id,name,description,price_vnd,image_url,active,created_at FROM products/);
+  assert.match(customerSiteApi, /PATCH/);
+  assert.match(customerSiteApi, /invalid_product_status/);
+  assert.match(customerSiteApi, /UPDATE products SET active/);
+});
+
+test("customer admin dashboard uses session-only token and safe DOM text rendering", () => {
+  assert.match(customerAdmin, /let adminToken=""/);
+  assert.doesNotMatch(customerAdmin, /localStorage|sessionStorage/);
+  assert.match(customerAdmin, /textContent/);
+  assert.match(customerAdmin, /\/api\/admin\/products/);
+  assert.match(customerAdmin, /\/api\/admin\/orders/);
+  assert.match(customerAdmin, /ADMIN_API_TOKEN/);
 });
