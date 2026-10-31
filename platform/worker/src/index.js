@@ -200,21 +200,24 @@ async function getQuotaSnapshot(db, userId) {
 }
 
 async function adminOverview(db) {
-  const [users, orders, usage, services, pause] = await Promise.all([
+  const [users, orders, usage, services, controls, today] = await Promise.all([
     db.prepare("SELECT COUNT(*) AS total FROM users").first(),
     db.prepare("SELECT status, COUNT(*) AS total FROM orders GROUP BY status").all(),
     db.prepare("SELECT status, COUNT(*) AS total FROM usage_events GROUP BY status").all(),
     db.prepare("SELECT service_id, enabled, guest_free_uses, registered_free_uses, max_input_chars, max_output_tokens, estimated_cost_units_per_use, daily_request_limit FROM service_settings ORDER BY service_id").all(),
-    db.prepare("SELECT control_value FROM platform_controls WHERE control_key = 'global_ai_pause'").first(),
+    db.prepare("SELECT control_key, control_value FROM platform_controls WHERE control_key IN ('global_ai_pause','ai_generation_enabled','daily_budget_units')").all(),
+    db.prepare("SELECT COUNT(*) AS requests, COALESCE(SUM(estimated_cost_units),0) AS estimated_units, COALESCE(SUM(actual_cost_units),0) AS actual_units FROM usage_events WHERE date(created_at) = date('now') AND status IN ('reserved','completed')").first(),
   ]);
+  const controlMap = Object.fromEntries((controls.results || []).map(x => [x.control_key, x.control_value]));
   return {
     users: users?.total || 0,
     orders_by_status: orders?.results || [],
     usage_by_status: usage?.results || [],
     services: services?.results || [],
-    global_ai_pause: pause?.control_value !== "false",
-    generation_enabled: false,
-    note: "AI generation remains disabled until quota reservation and cost controls are completed.",
+    global_ai_pause: controlMap.global_ai_pause !== "false",
+    generation_enabled: controlMap.ai_generation_enabled === "true",
+    daily_budget_units: Number(controlMap.daily_budget_units || 0),
+    today_usage: { requests: Number(today?.requests || 0), estimated_units: Number(today?.estimated_units || 0), actual_units: Number(today?.actual_units || 0) },
   };
 }
 
