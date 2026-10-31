@@ -10,6 +10,8 @@ const customerSiteHtml = await readFile(new URL("../../customer-site/site/index.
 const customerSiteSchema = await readFile(new URL("../../customer-site/schema.sql", import.meta.url), "utf8");
 const customerSiteReadme = await readFile(new URL("../../customer-site/README.md", import.meta.url), "utf8");
 const customerAdmin = await readFile(new URL("../../customer-site/site/admin.html", import.meta.url), "utf8");
+const zipBuilder = await readFile(new URL("../../customer-site/tools/build-zip.mjs", import.meta.url), "utf8");
+const customerPackage = JSON.parse(await readFile(new URL("../../customer-site/package.json", import.meta.url), "utf8"));
 const migrations = await Promise.all(
   Array.from({ length: 9 }, (_, i) =>
     readFile(new URL(`../migrations/${String(i + 1).padStart(4, "0")}_${[
@@ -191,4 +193,22 @@ test("customer admin dashboard uses session-only token and safe DOM text renderi
   assert.match(customerAdmin, /\/api\/admin\/products/);
   assert.match(customerAdmin, /\/api\/admin\/orders/);
   assert.match(customerAdmin, /ADMIN_API_TOKEN/);
+});
+
+test("customer ZIP builder packages all deployable source files without platform secrets", () => {
+  for (const file of ["README.md", "package.json", "wrangler.toml", "schema.sql", "src/index.js", "site/index.html", "site/admin.html"]) {
+    assert.ok(zipBuilder.includes('"'+file+'"'), "ZIP must include "+file);
+  }
+  assert.match(zipBuilder, /zipSync/);
+  assert.match(zipBuilder, /ADMIN_API_TOKEN/);
+  assert.doesNotMatch(zipBuilder, /RESEND_API_KEY|CLOUDFLARE_API_TOKEN/);
+  assert.equal(customerPackage.scripts["build:zip"], "node tools/build-zip.mjs");
+  assert.match(customerPackage.dependencies.fflate, /0\.8/);
+});
+
+test("customer ZIP builder supports API and Pages origin configuration", () => {
+  assert.match(zipBuilder, /--api-url/);
+  assert.match(zipBuilder, /--pages-origin/);
+  assert.match(zipBuilder, /REPLACE-WITH-YOUR-WORKER/);
+  assert.match(zipBuilder, /REPLACE-WITH-YOUR-PAGES/);
 });
