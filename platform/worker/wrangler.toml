@@ -14,3 +14,6 @@ binding = "DB"
 database_name = "ai-mini-business-db"
 database_id = "REPLACE-WITH-YOUR-D1-DATABASE-ID"
 migrations_dir = "migrations"
+
+[ai]
+binding = "AI"
