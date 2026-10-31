@@ -88,7 +88,6 @@ export default {
             data.customer_name.length > 120 || !validEmail(data.customer_email) ||
             typeof data.product_id !== "string" || !Number.isSafeInteger(data.quantity) ||
             data.quantity < 1 || data.quantity > 20 ||
-            typeof (data.customer_phone || "") !== "string" || (data.customer_phone || "").length > 30 ||
             typeof (data.note || "") !== "string" || (data.note || "").length > 1000) {
           return json({ error: "invalid_order" }, 400, request, env);
         }
@@ -100,8 +99,8 @@ export default {
         if (!Number.isSafeInteger(total) || total > 100000000000) return json({ error: "invalid_total" }, 400, request, env);
         const orderId = id();
         await env.DB.prepare(
-          "INSERT INTO orders (id,customer_name,customer_email,customer_phone,product_id,product_name_snapshot,unit_price_vnd,quantity,total_vnd,note) VALUES (?,?,?,?,?,?,?,?,?,?)"
-        ).bind(orderId,data.customer_name.trim(),data.customer_email.trim().toLowerCase(),(data.customer_phone||"").trim(),product.id,product.name,product.price_vnd,data.quantity,total,(data.note||"").trim()).run();
+          "INSERT INTO orders (id,customer_name,customer_email,product_id,product_name_snapshot,unit_price_vnd,quantity,total_vnd,note) VALUES (?,?,?,?,?,?,?,?,?)"
+        ).bind(orderId,data.customer_name.trim(),data.customer_email.trim().toLowerCase(),product.id,product.name,product.price_vnd,data.quantity,total,(data.note||"").trim()).run();
         return json({ ok: true, order: { id: orderId, total_vnd: total, status: "new" } }, 201, request, env);
       }
 
@@ -150,7 +149,7 @@ export default {
       if (url.pathname === "/api/admin/orders" && request.method === "GET") {
         if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
         const rows = await env.DB.prepare(
-          "SELECT id,customer_name,customer_email,customer_phone,product_name_snapshot,unit_price_vnd,quantity,total_vnd,note,status,created_at FROM orders ORDER BY created_at DESC LIMIT 200"
+          "SELECT id,customer_name,customer_email,product_name_snapshot,unit_price_vnd,quantity,total_vnd,note,status,created_at FROM orders ORDER BY created_at DESC LIMIT 200"
         ).all();
         return json({ orders: rows.results || [] }, 200, request, env);
       }
