@@ -17,3 +17,6 @@ This directory contains the new AI Mini Business backend foundation. It is inten
 6. Customer website ZIP templates with independent backend, admin portal, database migrations, and self-deployment guide.
 
 Generated customer websites must use the customer's own hosting, database, and secrets. Never include AI Mini Business platform secrets in a customer ZIP.
+
+## Customer website starter template
+The `customer-site/` directory is a separate starter project for customer-owned storefronts. It includes a static storefront, Worker API, D1 schema, Wrangler configuration and deployment guide. Each customer must deploy it into their own Cloudflare account and configure their own D1 database and Worker secret. It does not reuse the platform database or secrets. It is a starter template, not a production-ready ecommerce platform; see its README for current limitations. ZIP generation and per-order customization are future tasks.
