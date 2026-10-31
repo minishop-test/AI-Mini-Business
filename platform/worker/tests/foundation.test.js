@@ -373,7 +373,7 @@ test("customer storefront admin can edit product fields and export orders as CSV
   assert.match(customerSiteApi, /invalid_product_price/);
   assert.match(customerSiteAdmin, /id="exportOrders"/);
   assert.match(customerSiteAdmin, /don-hang\.csv/);
-  assert.match(customerSiteAdmin, /api\("/api\/admin\/products\/"+p\.id/);
+  assert.ok(customerSiteAdmin.includes('api("/api/admin/products/"+p.id'));
 });
 
 test("customer can edit website draft fields and save through authenticated revision endpoint", () => {
