@@ -285,6 +285,20 @@ test("bundled website template contains isolated customer frontend, API and depl
   assert.match(customerTemplate, /customer-store-api/);
 });
 
+test("customer can edit website draft fields and save through authenticated revision endpoint", () => {
+  assert.match(api, /websiteConfigMatch/);
+  assert.match(api, /UPDATE orders SET preview_text/);
+  assert.match(api, /status='pending_review'/);
+  assert.match(api, /INSERT INTO order_revisions/);
+  assert.match(customer, /id="visualEditorCard"/);
+  assert.match(customer, /function loadVisualEditor/);
+  assert.match(customer, /function readEditorConfig/);
+  assert.match(customer, /Mở trình chỉnh sửa trực quan/);
+  assert.match(customer, /website-config/);
+  assert.match(customer, /Lưu thay đổi/);
+  assert.match(customer, /Hoàn tác/);
+});
+
 test("customer dashboard renders a visual website preview with safe DOM text and bounded images", () => {
   assert.match(customer, /id="websiteLivePreview"/);
   assert.match(customer, /function renderStorePreview/);
