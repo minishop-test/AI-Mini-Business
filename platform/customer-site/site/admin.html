@@ -20,9 +20,9 @@
 <button type="submit">Thêm sản phẩm</button></form></section>
 <section class="card"><h2>Tình trạng</h2><p id="summary" class="muted">Đang tải...</p><button class="secondary" id="refresh">Làm mới dữ liệu</button><button class="danger" id="logout">Đăng xuất</button></section>
 </div>
-<section class="card"><h2>Sản phẩm</h2><div class="scroll"><table><thead><tr><th>Tên</th><th>Giá</th><th>Hiển thị</th><th>Thao tác</th></tr></thead><tbody id="products"><tr><td colspan="4">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
+<section class="card"><h2>Sản phẩm</h2><label for="productSearch">Tìm sản phẩm</label><input id="productSearch" type="search" placeholder="Nhập tên hoặc mô tả..."><div class="scroll"><table><thead><tr><th>Tên</th><th>Giá</th><th>Hiển thị</th><th>Thao tác</th></tr></thead><tbody id="products"><tr><td colspan="4">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
 <section class="card"><h2>Nhật ký hoạt động</h2><p class="muted">100 thao tác quản trị gần nhất.</p><div class="scroll"><table><thead><tr><th>Thời gian</th><th>Hành động</th><th>Đối tượng</th><th>Chi tiết</th></tr></thead><tbody id="auditLog"><tr><td colspan="4">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
-<section class="card"><h2>Đơn hàng</h2><button class="secondary" id="exportOrders">Xuất CSV</button><div class="scroll"><table><thead><tr><th>Thời gian</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead><tbody id="orders"><tr><td colspan="6">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
+<section class="card"><h2>Đơn hàng</h2><label for="orderSearch">Tìm đơn hàng</label><input id="orderSearch" type="search" placeholder="Tên, email, mã đơn hoặc trạng thái..."><button class="secondary" id="exportOrders">Xuất CSV</button><div class="scroll"><table><thead><tr><th>Thời gian</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead><tbody id="orders"><tr><td colspan="6">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
 </div>
 <div id="message" class="notice hidden" role="status"></div>
 </main>
@@ -90,6 +90,9 @@ $("exportOrders").addEventListener("click",async()=>{
   a.href=url;a.download="don-hang.csv";a.click();URL.revokeObjectURL(url);notify("Đã xuất danh sách đơn hàng.");
  }catch(e){notify(e.message,true);}
 });
+function filterRows(inputId,tableId){const query=$(inputId).value.trim().toLocaleLowerCase("vi");$(tableId).querySelectorAll("tr").forEach(row=>{row.hidden=Boolean(query)&&!row.textContent.toLocaleLowerCase("vi").includes(query);});}
+$("productSearch").addEventListener("input",()=>filterRows("productSearch","products"));
+$("orderSearch").addEventListener("input",()=>filterRows("orderSearch","orders"));
 $("refresh").addEventListener("click",()=>loadAll().then(()=>notify("Đã làm mới dữ liệu.")).catch(e=>notify(e.message,true)));
 $("logout").addEventListener("click",async()=>{const oldToken=adminToken;adminToken="";if(sessionExpiryTimer)clearTimeout(sessionExpiryTimer);try{if(oldToken)await fetch(API_BASE+"/api/admin/logout",{method:"POST",headers:{"authorization":"Bearer "+oldToken}});}finally{$("dashboard").classList.add("hidden");$("login").classList.remove("hidden");$("token").value="";notify("Đã đăng xuất.");}});
 </script></body></html>
