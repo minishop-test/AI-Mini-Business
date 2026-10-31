@@ -1,4 +1,5 @@
 import { zipSync, strToU8 } from "fflate";
+import { CUSTOMER_SITE_FILES } from "./customer-site-template.js";
 const SESSION_DAYS = 7;
 const PBKDF2_ITERATIONS = 100000;
 const encoder = new TextEncoder();
