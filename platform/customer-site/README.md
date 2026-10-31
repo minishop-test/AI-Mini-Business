@@ -99,7 +99,7 @@ Quản trị viên gửi file dạng multipart/form-data với field `file` đ�
 
 Các route này yêu cầu session quản trị hợp lệ. Không gửi file qua public R2 URL. Nếu upload thay file cũ, object cũ cần được dọn định kỳ; không xóa thủ công bucket đang dùng. Chưa có giao diện nút upload/cấp link trong admin dashboard; các endpoint là nền backend, cần nối UI ở bước kế tiếp.
 
-## Sao lưu dữ liệu
+## Sao lưu dữ liệu\nDùng lệnh D1 export để xuất bản sao database trước khi chạy migration.
 Trước khi chạy migration hoặc cập nhật Worker, nên xuất bản sao D1:
 `npx wrangler d1 export customer-store-db --remote --output=./backup-customer-store.sql`.
 Giữ file backup ở nơi riêng tư; không đưa dữ liệu khách hàng vào ZIP phát hành hoặc commit lên GitHub.
