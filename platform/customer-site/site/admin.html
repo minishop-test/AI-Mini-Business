@@ -22,7 +22,7 @@
 </div>
 <section class="card"><h2>Sản phẩm</h2><div class="scroll"><table><thead><tr><th>Tên</th><th>Giá</th><th>Hiển thị</th><th>Thao tác</th></tr></thead><tbody id="products"><tr><td colspan="4">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
 <section class="card"><h2>Nhật ký hoạt động</h2><p class="muted">100 thao tác quản trị gần nhất.</p><div class="scroll"><table><thead><tr><th>Thời gian</th><th>Hành động</th><th>Đối tượng</th><th>Chi tiết</th></tr></thead><tbody id="auditLog"><tr><td colspan="4">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
-<section class="card"><h2>Đơn hàng</h2><div class="scroll"><table><thead><tr><th>Thời gian</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead><tbody id="orders"><tr><td colspan="6">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
+<section class="card"><h2>Đơn hàng</h2><button class="secondary" id="exportOrders">Xuất CSV</button><div class="scroll"><table><thead><tr><th>Thời gian</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead><tbody id="orders"><tr><td colspan="6">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
 </div>
 <div id="message" class="notice hidden" role="status"></div>
 </main>
@@ -37,7 +37,15 @@ async function loadAll(){
  const [products,orders,audit]=await Promise.all([api("/api/admin/products"),api("/api/admin/orders"),api("/api/admin/audit-log")]);
  $("products").replaceChildren();(products.products||[]).forEach(p=>{
   const tr=document.createElement("tr");for(const value of [p.name,money(p.price_vnd),p.active?"Đang hiển thị":"Đã ẩn"]){const td=document.createElement("td");td.textContent=value;tr.append(td);}
-  const td=document.createElement("td"),btn=document.createElement("button");btn.className=p.active?"danger":"secondary";btn.textContent=p.active?"Ẩn sản phẩm":"Hiện sản phẩm";btn.addEventListener("click",async()=>{btn.disabled=true;try{await api("/api/admin/products/"+p.id,{method:"PATCH",body:JSON.stringify({active:!p.active})});await loadAll();notify("Đã cập nhật sản phẩm.");}catch(e){notify(e.message,true);}finally{btn.disabled=false;}});td.append(btn);tr.append(td);$("products").append(tr);
+  const td=document.createElement("td"),edit=document.createElement("button");edit.className="secondary";edit.textContent="Sửa";edit.addEventListener("click",async()=>{
+   const name=prompt("Tên sản phẩm:",p.name);if(name===null)return;
+   const description=prompt("Mô tả sản phẩm:",p.description||"");if(description===null)return;
+   const price=prompt("Giá (VND):",String(p.price_vnd));if(price===null)return;
+   const image=prompt("URL ảnh HTTPS (để trống nếu không có):",p.image_url||"");if(image===null)return;
+   try{await api("/api/admin/products/"+p.id,{method:"PATCH",body:JSON.stringify({name,description,price_vnd:Number(price),image_url:image||null})});await loadAll();notify("Đã lưu thay đổi sản phẩm.");}catch(e){notify(e.message,true);}
+  });
+  const btn=document.createElement("button");btn.className=p.active?"danger":"secondary";btn.textContent=p.active?"Ẩn sản phẩm":"Hiện sản phẩm";btn.addEventListener("click",async()=>{btn.disabled=true;try{await api("/api/admin/products/"+p.id,{method:"PATCH",body:JSON.stringify({active:!p.active})});await loadAll();notify("Đã cập nhật sản phẩm.");}catch(e){notify(e.message,true);}finally{btn.disabled=false;}});
+  td.append(edit,btn);tr.append(td);$("products").append(tr);
  });
  if(!(products.products||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=4;td.textContent="Chưa có sản phẩm.";tr.append(td);$("products").append(tr);}
  $("orders").replaceChildren();(orders.orders||[]).forEach(o=>{
@@ -73,6 +81,15 @@ $("connect").addEventListener("click",async()=>{
  finally{$("connect").disabled=false;}
 });
 $("productForm").addEventListener("submit",async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;try{await api("/api/admin/products",{method:"POST",body:JSON.stringify({name:$("pName").value,description:$("pDescription").value,price_vnd:Number($("pPrice").value),image_url:$("pImage").value||null})});$("productForm").reset();await loadAll();notify("Đã thêm sản phẩm.");}catch(err){notify(err.message,true);}finally{btn.disabled=false;}});
+$("exportOrders").addEventListener("click",async()=>{
+ try{
+  const data=await api("/api/admin/orders");
+  const columns=["created_at","customer_name","customer_email","customer_phone","product_name_snapshot","quantity","unit_price_vnd","total_vnd","note","status"];
+  const csv=[columns.join(","),...(data.orders||[]).map(o=>columns.map(k=>{const v=String(o[k]??"").replace(/"/g,'""');return '"'+v+'"';}).join(","))].join("\\r\\n");
+  const blob=new Blob(["\\uFEFF"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download="don-hang.csv";a.click();URL.revokeObjectURL(url);notify("Đã xuất danh sách đơn hàng.");
+ }catch(e){notify(e.message,true);}
+});
 $("refresh").addEventListener("click",()=>loadAll().then(()=>notify("Đã làm mới dữ liệu.")).catch(e=>notify(e.message,true)));
 $("logout").addEventListener("click",async()=>{const oldToken=adminToken;adminToken="";if(sessionExpiryTimer)clearTimeout(sessionExpiryTimer);try{if(oldToken)await fetch(API_BASE+"/api/admin/logout",{method:"POST",headers:{"authorization":"Bearer "+oldToken}});}finally{$("dashboard").classList.add("hidden");$("login").classList.remove("hidden");$("token").value="";notify("Đã đăng xuất.");}});
 </script></body></html>
