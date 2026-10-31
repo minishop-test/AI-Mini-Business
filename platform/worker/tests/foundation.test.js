@@ -5,6 +5,10 @@ import { readFile } from "node:fs/promises";
 const api = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
 const customer = await readFile(new URL("../../customer/index.html", import.meta.url), "utf8");
 const admin = await readFile(new URL("../../admin/index.html", import.meta.url), "utf8");
+const customerSiteApi = await readFile(new URL("../../customer-site/src/index.js", import.meta.url), "utf8");
+const customerSiteHtml = await readFile(new URL("../../customer-site/site/index.html", import.meta.url), "utf8");
+const customerSiteSchema = await readFile(new URL("../../customer-site/schema.sql", import.meta.url), "utf8");
+const customerSiteReadme = await readFile(new URL("../../customer-site/README.md", import.meta.url), "utf8");
 const migrations = await Promise.all(
   Array.from({ length: 9 }, (_, i) =>
     readFile(new URL(`../migrations/${String(i + 1).padStart(4, "0")}_${[
@@ -142,4 +146,32 @@ test("admin dashboard exposes AI switch and daily budget controls", () => {
   assert.match(admin, /\/api\/admin\/ai-generation/);
   assert.match(admin, /\/api\/admin\/budget/);
   assert.match(admin, /today_usage/);
+});
+
+test("customer website starter has independent D1 schema and isolated backend", () => {
+  assert.match(customerSiteSchema, /CREATE TABLE IF NOT EXISTS products/);
+  assert.match(customerSiteSchema, /CREATE TABLE IF NOT EXISTS orders/);
+  assert.match(customerSiteApi, /env\.DB/);
+  assert.doesNotMatch(customerSiteApi, /ai-mini-business-db|RESEND_API_KEY/);
+});
+
+test("customer starter protects admin endpoints with a server-side secret", () => {
+  assert.match(customerSiteApi, /function isAdmin/);
+  assert.match(customerSiteApi, /ADMIN_API_TOKEN/);
+  assert.match(customerSiteApi, /\/api\/admin\/orders/);
+  assert.match(customerSiteApi, /\/api\/admin\/products/);
+  assert.match(customerSiteApi, /untrusted_origin/);
+});
+
+test("customer storefront uses safe text rendering and submits orders through its own API", () => {
+  assert.match(customerSiteHtml, /const API_BASE=/);
+  assert.match(customerSiteHtml, /textContent=p\.name/);
+  assert.match(customerSiteHtml, /\/api\/orders/);
+  assert.match(customerSiteHtml, /credentials/);
+});
+
+test("customer starter documents independent deployment and missing production features", () => {
+  assert.match(customerSiteReadme, /D1 database/);
+  assert.match(customerSiteReadme, /ADMIN_API_TOKEN/);
+  assert.match(customerSiteReadme, /chưa phải nền tảng thương mại điện tử production-ready/);
 });
