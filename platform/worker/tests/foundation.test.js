@@ -367,6 +367,13 @@ test("customer storefront records admin mutations and exposes a protected read-o
   assert.match(customerSiteReadme, /0003_admin_audit_log\.sql/);
 });
 
+test("customer admin dashboard provides local product and order search fields", () => {
+  assert.match(customerAdmin, /id="productSearch"/);
+  assert.match(customerAdmin, /id="orderSearch"/);
+  assert.match(customerAdmin, /function filterRows/);
+  assert.match(customerAdmin, /toLocaleLowerCase\("vi"\)/);
+});
+
 test("customer storefront admin can edit product fields and export orders as CSV", () => {
   assert.match(customerSiteApi, /UPDATE products SET name=\?,description=\?,price_vnd=\?,image_url=\?,active=\?/);
   assert.match(customerSiteApi, /product\.updated/);
