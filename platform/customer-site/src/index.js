@@ -46,6 +46,12 @@ async function isAdmin(request, env) {
 
 function id() { return crypto.randomUUID(); }
 
+async function writeAudit(env, action, entityType, entityId, details = {}) {
+  await env.DB.prepare(
+    "INSERT INTO admin_audit_log (id,actor,action,entity_type,entity_id,details_json) VALUES (?,?,?,?,?,?)"
+  ).bind(id(), "admin", action, entityType, entityId, JSON.stringify(details)).run();
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -149,6 +155,14 @@ export default {
         return json({ orders: rows.results || [] }, 200, request, env);
       }
 
+      if (url.pathname === "/api/admin/audit-log" && request.method === "GET") {
+        if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
+        const rows = await env.DB.prepare(
+          "SELECT id,actor,action,entity_type,entity_id,details_json,created_at FROM admin_audit_log ORDER BY created_at DESC LIMIT 100"
+        ).all();
+        return json({ entries: rows.results || [] }, 200, request, env);
+      }
+
       if (url.pathname === "/api/admin/products" && request.method === "POST") {
         if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
         const data = await bodyJson(request);
@@ -162,6 +176,7 @@ export default {
         await env.DB.prepare(
           "INSERT INTO products (id,name,description,price_vnd,image_url) VALUES (?,?,?,?,?)"
         ).bind(productId,data.name.trim(),(data.description||"").trim(),data.price_vnd,data.image_url||null).run();
+        await writeAudit(env, "product.created", "product", productId, { name: data.name.trim(), price_vnd: data.price_vnd });
         return json({ ok: true, product_id: productId }, 201, request, env);
       }
 
@@ -172,6 +187,7 @@ export default {
         if (!data || typeof data.active !== "boolean") return json({ error: "invalid_product_status" }, 400, request, env);
         const result = await env.DB.prepare("UPDATE products SET active=? WHERE id=?").bind(data.active ? 1 : 0, productMatch[1]).run();
         if (!result.meta?.changes) return json({ error: "product_not_found" }, 404, request, env);
+        await writeAudit(env, data.active ? "product.activated" : "product.hidden", "product", productMatch[1], { active: data.active });
         return json({ ok: true, active: data.active }, 200, request, env);
       }
 
@@ -183,6 +199,7 @@ export default {
         if (!data || !allowed.includes(data.status)) return json({ error: "invalid_status" }, 400, request, env);
         const result = await env.DB.prepare("UPDATE orders SET status=? WHERE id=?").bind(data.status,statusMatch[1]).run();
         if (!result.meta?.changes) return json({ error: "order_not_found" }, 404, request, env);
+        await writeAudit(env, "order.status_changed", "order", statusMatch[1], { status: data.status });
         return json({ ok: true, status: data.status }, 200, request, env);
       }
 
