@@ -14,6 +14,8 @@ This is a development foundation, not a production-ready service.
 - `GET /api/admin/overview`: admin-only counts and service settings.
 - `GET /api/admin/usage`: admin-only usage-event aggregates.
 - `POST /api/admin/pause`: admin-only global AI pause setting.
+- `POST /api/admin/budget`: admin-only daily internal budget configuration.
+- `POST /api/admin/service`: admin-only service enable/disable and per-service estimated cost/daily request caps.
 - `POST /api/admin/service`: admin-only service enable/disable.
 - `GET /api/quota/me`: customer quota snapshot by service.
 - `POST /api/quota/reserve`: reserves one registered free use when the service is enabled, the global pause is off, the customer has remaining quota, and the daily budget permits it. This does not start AI generation.
@@ -29,6 +31,7 @@ Authentication uses PBKDF2-SHA-256 password hashes with per-user salts and rando
 5. `migrations/0005_order_workflow.sql`
 6. `migrations/0006_api_rate_limits.sql`
 7. `migrations/0007_email_verification_password_reset.sql`
+8. `migrations/0008_service_cost_budgets.sql`
 
 Bind the database as `DB`.
 
@@ -77,7 +80,7 @@ Browser requests must send credentials for the session cookie. State-changing ro
 - Basic admin and customer HTML pages are in `../admin/index.html` and `../customer/index.html`; they are static interfaces and still need deployment and browser/API integration testing.
 - Order workflow APIs support a manual review and payment process. Status updates include the previously-read status in the UPDATE condition to reject competing transitions, and delivery requires an HTTPS link. There is no payment gateway or automatic email/file delivery.
 - Quota usage and reservation rows are inserted together in a D1 batch. This is a first-stage gate for registered users; guest trials, paid top-ups, automatic timeout/reconciliation, and reliable provider metering are not implemented.
-- Each reservation currently uses a conservative fixed estimate of 1,000 internal budget units; this is a placeholder, not a real Cloudflare Neurons or currency conversion.
+- Migration 0008 adds a per-service estimated cost in internal units and a daily request cap. Initial estimates are placeholders (website 3,000; logo 2,500; documents 900; video prompts/business content 700 units per use) and are not Cloudflare Neurons, dollars, or a provider bill. Replace them only after measuring actual model/provider usage. The global daily budget starts at 10,000 internal units.
 - Service enable switches are configuration only; they do not enable generation.
 - No AI provider integration; generated content, logo image generation, website ZIP packaging and automated delivery are not implemented.
 - Security review and deployment testing are still required.
@@ -96,3 +99,15 @@ Do not put the Resend API key in `wrangler.toml`, HTML, or Git.
 
 ## Additional admin safety checks
 Admin write routes are limited to 30 requests per administrator per 60 seconds. Quota reservation settlement uses conditional updates in a D1 batch and returns a conflict if another request already settled the reservation. These controls reduce accidental duplicate admin actions; run the automated tests and concurrency tests against a disposable D1 database before production use.
+
+## Internal AI budget controls (migration 0008)
+The initial per-use estimates and daily service request caps are conservative configuration placeholders, not measured provider costs:
+- Website: 3,000 internal units/use, maximum 10 requests/day.
+- Logo: 2,500 units/use, maximum 20 requests/day.
+- Documents: 900 units/use, maximum 60 requests/day.
+- Video prompts and business content: 700 units/use, maximum 100 requests/day.
+- Global daily budget: 10,000 internal units.
+
+An admin can update the global budget using `POST /api/admin/budget` with `{"daily_budget_units":10000}`. The admin service endpoint accepts optional `estimated_cost_units_per_use` and `daily_request_limit` values alongside `service_id` and `enabled`. Values are validated server-side. Budget reservation checks the per-service daily cap and global daily budget before inserting usage rows.
+
+These units are internal guardrail weights only. They do not claim to predict exact Cloudflare AI Neurons, image API charges, CPU, or storage. AI generation remains disabled until provider-specific metering, refunds/reconciliation, and runtime tests are complete.
