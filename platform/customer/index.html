@@ -125,6 +125,22 @@ async function refreshOrders(){
   item.append(title,document.createTextNode(" "),state,brief,amount);
   if(o.admin_note){const note=document.createElement("p");note.className="muted";note.textContent="Ghi chú: "+o.admin_note;item.append(note);}
   if(o.preview_text){const preview=document.createElement("details");const summary=document.createElement("summary");summary.textContent="Xem nội dung xem trước";const body=document.createElement("pre");body.style.whiteSpace="pre-wrap";body.textContent=o.preview_text;preview.append(summary,body);item.append(preview);}
+  if(o.service_id==="website" && o.status==="pending_review"){
+   const edit=document.createElement("details");const editTitle=document.createElement("summary");editTitle.textContent="Yêu cầu AI chỉnh sửa website";edit.append(editTitle);
+   const instruction=document.createElement("textarea");instruction.rows=3;instruction.maxLength=4000;instruction.minLength=10;instruction.placeholder="Ví dụ: đổi màu chủ đạo sang xanh dương, thêm danh mục...";
+   instruction.style.width="100%";instruction.style.marginTop="8px";
+   const revise=document.createElement("button");revise.type="button";revise.textContent="Gửi yêu cầu chỉnh sửa";
+   revise.addEventListener("click",async()=>{
+    revise.disabled=true;
+    try{
+     const result=await api("/api/generate",{method:"POST",body:JSON.stringify({service_id:"website",order_id:o.id,brief:instruction.value})});
+     notice("Đã cập nhật bản thiết kế cho đơn "+o.id+". Xem bản mới bên dưới.","ok");
+     await refreshOrders();await refreshQuota();
+    }catch(err){notice("Không chỉnh sửa được: "+err.message,"error");}
+    finally{revise.disabled=false;}
+   });
+   edit.append(instruction,revise);item.append(edit);
+  }
   if(o.delivery_url && o.status==="delivered"){const link=document.createElement("a");link.href=o.delivery_url;link.textContent="Tải website ZIP đã bàn giao";item.append(link);}
   $("orders").append(item);
  });
