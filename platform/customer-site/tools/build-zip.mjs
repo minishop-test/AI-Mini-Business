@@ -36,7 +36,7 @@ const products = Array.isArray(config.products) ? config.products.slice(0, 30).m
 })).filter(p => p.name && p.priceVnd !== null) : [];
 const files = [
   "README.md", "package.json", "wrangler.toml", "schema.sql",
-  "src/index.js", "site/index.html", "site/admin.html"
+  "src/index.js", "site/index.html", "site/admin.html",\n  "migrations/0002_admin_sessions.sql", "migrations/0003_admin_audit_log.sql",\n  "migrations/0004_payment_delivery.sql", "migrations/0005_private_deliveries.sql"
 ];
 const archive = {};
 for (const relative of files) {
