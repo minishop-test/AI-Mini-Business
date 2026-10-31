@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const api = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
+const customerTemplate = await readFile(new URL("../src/customer-site-template.js", import.meta.url), "utf8");
 const customer = await readFile(new URL("../../customer/index.html", import.meta.url), "utf8");
 const admin = await readFile(new URL("../../admin/index.html", import.meta.url), "utf8");
 const customerSiteApi = await readFile(new URL("../../customer-site/src/index.js", import.meta.url), "utf8");
@@ -257,6 +258,30 @@ test("customer ZIP builder personalizes storefront branding and creates product 
   assert.match(zipBuilder, /--config/);
   assert.match(zipBuilder, /slice\(0, 30\)/);
   assert.match(zipBuilder, /safeColor/);
+});
+
+test("admin can generate a personalized website ZIP directly from a paid website order", () => {
+  assert.match(api, /import \{ zipSync, strToU8 \} from "fflate"/);
+  assert.match(api, /CUSTOMER_SITE_FILES/);
+  assert.match(api, /\/api\/admin\/build-website-package/);
+  assert.match(api, /order\.service_id !== "website"/);
+  assert.match(api, /!\["paid", "processing"\]\.includes\(order\.status\)/);
+  assert.match(api, /zipSync\(files, \{ level: 6 \}\)/);
+  assert.match(api, /seed-products\.sql/);
+  assert.match(api, /store-config\.json/);
+  assert.match(api, /env\.PACKAGES\.put\(key, zip/);
+  assert.match(api, /website_package_generated/);
+  assert.match(admin, /id="buildPackage"/);
+  assert.match(admin, /buildWebsitePackage/);
+});
+
+test("bundled website template contains isolated customer frontend, API and deployment instructions", () => {
+  for (const file of ["README.md","package.json","wrangler.toml","schema.sql","src/index.js","site/index.html","site/admin.html"]) {
+    assert.ok(customerTemplate.includes('"'+file+'"'), "missing bundled template "+file);
+  }
+  assert.match(customerTemplate, /ADMIN_API_TOKEN/);
+  assert.match(customerTemplate, /CREATE TABLE IF NOT EXISTS products/);
+  assert.match(customerTemplate, /customer-store-api/);
 });
 
 test("order package migration stores only private package metadata", () => {
