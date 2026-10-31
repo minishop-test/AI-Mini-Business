@@ -66,3 +66,22 @@ test("admin UI uses textContent for customer-provided order labels", () => {
   assert.match(admin, /title\.textContent/);
   assert.match(admin, /detail\.textContent/);
 });
+
+test("admin write endpoints have a server-side rate limit", () => {
+  assert.match(api, /"admin-write", user\.id, 30, 60/);
+});
+
+test("quota settlement checks both conditional updates", () => {
+  assert.match(api, /const settlement = await env\.DB\.batch\(\[/);
+  assert.match(api, /reservation_changed_retry/);
+  assert.match(api, /status = 'reserved' AND EXISTS \(SELECT 1 FROM quota_reservations/);
+});
+
+test("customer order listing is scoped to the authenticated user", () => {
+  assert.match(api, /FROM orders WHERE user_id = \?/);
+  assert.match(api, /\.bind\(user\.id\)\.all\(\)/);
+});
+
+test("admin routes verify the server-side admin role before returning data", () => {
+  assert.match(api, /if \(user\.role !== "admin"\) return json\(\{ error: "forbidden" \}/);
+});
