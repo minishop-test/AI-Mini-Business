@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS orders (
   id TEXT PRIMARY KEY,
   customer_name TEXT NOT NULL CHECK(length(customer_name) BETWEEN 1 AND 120),
   customer_email TEXT NOT NULL CHECK(length(customer_email) <= 254),
-  customer_phone TEXT NOT NULL DEFAULT '' CHECK(length(customer_phone) <= 30),
   product_id TEXT NOT NULL REFERENCES products(id),
   product_name_snapshot TEXT NOT NULL,
   unit_price_vnd INTEGER NOT NULL CHECK(unit_price_vnd >= 0),
