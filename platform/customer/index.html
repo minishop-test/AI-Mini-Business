@@ -19,7 +19,7 @@ button.secondary{background:#e9eef6;color:#1e293b}button:disabled{opacity:.5;cur
 .quota div{background:#f7f9fc;padding:12px;border-radius:10px}.quota strong{display:block;font-size:20px}
 .order{padding:14px 0;border-bottom:1px solid #e9edf3}.order:last-child{border:0}.status{display:inline-block;border-radius:20px;padding:3px 9px;background:#eef2f7;font-size:12px}
 @media(max-width:560px){main{margin:16px auto}.card{padding:16px}.row{display:grid}}
-.website-preview{border:1px solid #dbe2ea;border-radius:14px;overflow:hidden;background:#f8fafc;color:#172033;margin:12px 0 20px}.website-preview .pv-head{padding:26px 20px;color:white}.website-preview .pv-head h2{margin:0 0 5px;font-size:25px}.website-preview .pv-nav{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;background:white;border-bottom:1px solid #e2e8f0}.website-preview .pv-chip{border:1px solid #e2e8f0;border-radius:20px;padding:4px 10px;font-size:12px}.website-preview .pv-content{padding:16px}.website-preview .pv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.website-preview .pv-product{background:white;border:1px solid #e2e8f0;border-radius:10px;padding:10px;min-width:0}.website-preview .pv-product img{width:100%;height:110px;object-fit:cover;border-radius:7px}.website-preview .pv-product h4{margin:8px 0 4px;font-size:15px}.website-preview .pv-product p{font-size:12px;color:#64748b;margin:4px 0}.website-preview .pv-price{font-weight:750;color:#172033;font-size:15px}.website-preview .pv-empty{color:#64748b;font-size:13px}@media(max-width:480px){.website-preview .pv-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.website-preview .pv-head{padding:20px 14px}}</style>
+.website-preview{border:1px solid #dbe2ea;border-radius:14px;overflow:hidden;background:#f8fafc;color:#172033;margin:12px 0 20px}.website-preview .pv-head{padding:26px 20px;color:white}.website-preview .pv-head h2{margin:0 0 5px;font-size:25px}.website-preview .pv-nav{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;background:white;border-bottom:1px solid #e2e8f0}.website-preview .pv-chip{border:1px solid #e2e8f0;border-radius:20px;padding:4px 10px;font-size:12px}.website-preview .pv-content{padding:16px}.website-preview .pv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.website-preview .pv-product{background:white;border:1px solid #e2e8f0;border-radius:10px;padding:10px;min-width:0}.website-preview .pv-product img{width:100%;height:110px;object-fit:cover;border-radius:7px}.website-preview .pv-product h4{margin:8px 0 4px;font-size:15px}.website-preview .pv-product p{font-size:12px;color:#64748b;margin:4px 0}.website-preview .pv-price{font-weight:750;color:#172033;font-size:15px}.website-preview .pv-empty{color:#64748b;font-size:13px}@media(max-width:480px){.website-preview .pv-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.website-preview .pv-head{padding:20px 14px}}.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.editor-grid label{display:block;font-weight:600;font-size:13px}.editor-grid input{width:100%;margin-top:4px}.editor-product{border:1px solid #dbe2ea;border-radius:10px;padding:10px;margin:8px 0;background:#fff}.editor-product .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:520px){.editor-grid{grid-template-columns:1fr}.editor-product .row{grid-template-columns:1fr}}</style>
 </head>
 <body>
 <header><h1>AI Mini Business</h1><div class="muted" style="color:#cbd5e1">Khu vực khách hàng · <a href="../../">Về trang chủ</a></div></header>
@@ -86,6 +86,19 @@ button.secondary{background:#e9eef6;color:#1e293b}button:disabled{opacity:.5;cur
 <div class="notice" id="websiteSummary"></div>
 <h3>Xem trước giao diện website</h3>
 <div id="websiteLivePreview" class="website-preview" aria-label="Bản xem trước website"></div>
+<section class="card hidden" id="visualEditorCard">
+ <h3>Chỉnh sửa trực quan</h3><p class="muted">Thay đổi và xem kết quả ngay. Chỉ lưu được khi đơn còn chờ xem xét.</p>
+ <div class="editor-grid">
+ <label>Tên cửa hàng<input id="editStoreName" maxlength="80"></label>
+ <label>Câu giới thiệu<input id="editTagline" maxlength="160"></label>
+ <label>Màu chủ đạo<input id="editColor" type="color" value="#2563eb"></label>
+ <label>Trang điều hướng<input id="editPages" maxlength="320" placeholder="Trang chủ, Sản phẩm, Liên hệ"></label>
+ </div>
+ <h4>Sản phẩm</h4><div id="editProducts"></div>
+ <button id="addEditorProduct" type="button" class="secondary">Thêm sản phẩm</button>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="saveVisualEdits" type="button">Lưu thay đổi</button><button id="resetVisualEdits" type="button" class="secondary">Hoàn tác</button></div>
+ <div id="editorMessage" class="notice" aria-live="polite"></div>
+</section>
 <h3>Sản phẩm mẫu do AI đề xuất</h3>
 <div id="websiteProducts"></div>
 <button type="button" class="secondary" id="downloadWebsiteConfig">Tải cấu hình JSON</button>
@@ -98,6 +111,43 @@ button.secondary{background:#e9eef6;color:#1e293b}button:disabled{opacity:.5;cur
 </section>
 </main>
 <script>
+
+let visualEditorOrderId=null,visualEditorConfig=null;
+function editorField(label,key,value,type="text",max=120){
+ const wrap=document.createElement("label");wrap.textContent=label;
+ const input=document.createElement("input");input.type=type;input.dataset.field=key;input.value=value??"";
+ if(type==="number"){input.min="0";input.max="1000000000";input.step="1";}else input.maxLength=max;
+ wrap.append(input);return wrap;
+}
+function drawEditorProduct(product={}){
+ const card=document.createElement("div");card.className="editor-product";
+ const row=document.createElement("div");row.className="row";
+ row.append(editorField("Tên sản phẩm","name",product.name),editorField("Giá (VNĐ)","price",product.priceVnd??0,"number"));
+ card.append(row,editorField("Mô tả","description",product.description));
+ card.append(editorField("Ảnh HTTPS (không bắt buộc)","image",product.imageUrl,"url",2000));
+ const remove=document.createElement("button");remove.type="button";remove.className="secondary";remove.textContent="Xóa sản phẩm";remove.addEventListener("click",()=>{card.remove();updatePreviewFromEditor();});card.append(remove);
+ $("editProducts").append(card);
+}
+function readEditorConfig(){
+ return {storeName:$("editStoreName").value.trim(),tagline:$("editTagline").value.trim(),primaryColor:$("editColor").value,
+ pages:$("editPages").value.split(",").map(x=>x.trim()).filter(Boolean),
+ products:[...$("editProducts").querySelectorAll(".editor-product")].map(card=>({
+ name:card.querySelector('[data-field="name"]').value.trim(),
+ description:card.querySelector('[data-field="description"]').value.trim(),
+ priceVnd:Number(card.querySelector('[data-field="price"]').value),
+ imageUrl:card.querySelector('[data-field="image"]').value.trim()||null
+ }))};
+}
+function loadVisualEditor(orderId,cfg){
+ visualEditorOrderId=orderId;visualEditorConfig=JSON.parse(JSON.stringify(cfg));
+ $("editStoreName").value=cfg.storeName||"";$("editTagline").value=cfg.tagline||"";
+ $("editColor").value=/^#[0-9a-fA-F]{6}$/.test(cfg.primaryColor||"")?cfg.primaryColor:"#2563eb";
+ $("editPages").value=(cfg.pages||[]).join(", ");$("editProducts").replaceChildren();
+ (cfg.products||[]).forEach(drawEditorProduct);$("editorMessage").textContent="";
+ $("visualEditorCard").classList.remove("hidden");renderStorePreview($("websiteLivePreview"),cfg);
+}
+function updatePreviewFromEditor(){if(visualEditorOrderId)renderStorePreview($("websiteLivePreview"),readEditorConfig());}
+
 const $=id=>document.getElementById(id);
 let authMode="login",currentUser=null;
 function apiRoot(){return $("apiBase").value.trim().replace(/\/$/,"");}
@@ -136,6 +186,23 @@ function renderStorePreview(container,cfg){
  if(!products.length){const empty=document.createElement("p");empty.className="pv-empty";empty.textContent="Sản phẩm sẽ được cập nhật sau.";grid.append(empty);}
  content.append(title,grid);shell.append(head,nav,content);container.append(shell);
 }
+
+$("addEditorProduct").addEventListener("click",()=>{if($("editProducts").children.length>=30){$("editorMessage").textContent="Tối đa 30 sản phẩm.";return;}drawEditorProduct({name:"",description:"",priceVnd:0});updatePreviewFromEditor();});
+["editStoreName","editTagline","editColor","editPages","editProducts"].forEach(id=>$(id).addEventListener("input",updatePreviewFromEditor));
+$("resetVisualEdits").addEventListener("click",()=>{if(visualEditorOrderId&&visualEditorConfig)loadVisualEditor(visualEditorOrderId,visualEditorConfig);});
+$("saveVisualEdits").addEventListener("click",async()=>{
+ const button=$("saveVisualEdits"),message=$("editorMessage");button.disabled=true;message.className="notice";message.textContent="Đang lưu...";
+ try{
+  const cfg=readEditorConfig();
+  if(!cfg.storeName||!cfg.tagline)throw new Error("Tên cửa hàng và câu giới thiệu không được để trống.");
+  if(cfg.products.length>30||cfg.products.some(p=>!p.name||!Number.isSafeInteger(p.priceVnd)||p.priceVnd<0||p.priceVnd>1000000000||p.description.length>1000||(p.imageUrl&&!/^https:\/\//i.test(p.imageUrl))))throw new Error("Kiểm tra tên, giá, mô tả và URL ảnh sản phẩm.");
+  const data=await api("/api/orders/"+visualEditorOrderId+"/website-config",{method:"PUT",body:JSON.stringify({website_config:cfg})});
+  visualEditorConfig=data.website_config;renderStorePreview($("websiteLivePreview"),visualEditorConfig);
+  message.className="notice ok";message.textContent="Đã lưu bản thiết kế. Đơn hàng vẫn chờ quản trị viên xem xét.";await refreshOrders();
+ }catch(err){message.className="notice error";message.textContent="Không lưu được: "+err.message;}
+ finally{button.disabled=false;}
+});
+
 async function refreshQuota(){
  const data=await api("/api/quota/me");$("quota").innerHTML="";
  (data.services||[]).forEach(s=>{const item=document.createElement("div");const title=document.createElement("span");title.className="muted";title.textContent=serviceName(s.service_id);const value=document.createElement("strong");value.textContent=s.remaining+" / "+s.free_limit;const note=document.createElement("span");note.className="muted";note.textContent=s.enabled?"lượt còn lại":"dịch vụ đang tạm tắt";item.append(title,value,note);$("quota").append(item);});
@@ -155,6 +222,9 @@ async function refreshOrders(){
    if(o.service_id==="website"){try{const cfg=JSON.parse(o.preview_text);const visual=document.createElement("div");renderStorePreview(visual,cfg);preview.append(visual);}catch{const body=document.createElement("pre");body.style.whiteSpace="pre-wrap";body.textContent=o.preview_text;preview.append(body);}}
    else{const body=document.createElement("pre");body.style.whiteSpace="pre-wrap";body.textContent=o.preview_text;preview.append(body);}
    item.append(preview);
+  }
+  if(o.service_id==="website" && o.status==="pending_review"){
+   try{const cfg=JSON.parse(o.preview_text||"");const editBtn=document.createElement("button");editBtn.type="button";editBtn.className="secondary";editBtn.textContent="Mở trình chỉnh sửa trực quan";editBtn.addEventListener("click",()=>{loadVisualEditor(o.id,cfg);$("visualEditorCard").scrollIntoView({behavior:"smooth",block:"start"});});item.append(editBtn);}catch{}
   }
   if(o.service_id==="website" && o.status==="pending_review"){
    const edit=document.createElement("details");const editTitle=document.createElement("summary");editTitle.textContent="Yêu cầu AI chỉnh sửa website";edit.append(editTitle);
