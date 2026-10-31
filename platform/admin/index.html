@@ -45,6 +45,15 @@ footer{font-size:12px;color:#738095;margin-top:18px}
 <div class="row" style="margin-top:16px"><strong>Trạng thái AI toàn hệ thống:</strong><span id="pauseState" class="pill">Chưa rõ</span><button id="pauseBtn" class="danger" disabled>Tạm dừng AI</button></div>
 </section>
 <section class="card">
+<h2>Điều khiển AI và ngân sách</h2>
+<div class="grid">
+<div class="metric"><span class="muted">AI tạo nội dung</span><strong id="generationState">—</strong><button id="generationBtn" class="secondary" disabled>Bật thử nghiệm AI</button></div>
+<div class="metric"><span class="muted">Ngân sách ngày</span><strong id="dailyBudget">—</strong><label class="muted" for="budgetInput">Đơn vị nội bộ/ngày</label><input id="budgetInput" type="number" min="0" max="100000000" step="100" placeholder="10000"><button id="saveBudget" class="secondary" disabled>Lưu ngân sách</button></div>
+<div class="metric"><span class="muted">Đã dùng hôm nay</span><strong id="todayUnits">—</strong><span id="todayRequests" class="muted">—</span></div>
+</div>
+<p class="muted">Đơn vị là trọng số nội bộ, không phải tiền hoặc Neurons thực tế. Bật thử nghiệm sẽ cho phép gọi AI thật trong giới hạn đã cấu hình.</p>
+</section>
+<section class="card">
 <h2>Quản lý dịch vụ</h2>
 <div id="services" class="muted">Chưa có dữ liệu dịch vụ.</div>
 </section>
@@ -85,12 +94,35 @@ async function api(path,options={}){
   if(!response.ok) throw new Error(data.message || data.error || ("HTTP "+response.status));
   return data;
 }
+async function toggleGeneration(enabled){
+  $("generationBtn").disabled=true;
+  try{await api("/api/admin/ai-generation",{method:"POST",body:JSON.stringify({enabled})});show(enabled?"Đã bật thử nghiệm AI. Hệ thống có thể phát sinh mức sử dụng Workers AI.":"Đã tắt tạo nội dung AI.","ok");await loadAll();}
+  catch(e){show("Không thể đổi trạng thái AI: "+e.message,"error");}
+  finally{$("generationBtn").disabled=false;}
+}
+async function saveBudget(){
+  const value=Number($("budgetInput").value);
+  if(!Number.isSafeInteger(value)||value<0||value>100000000){show("Ngân sách phải từ 0 đến 100.000.000 đơn vị.","error");return;}
+  $("saveBudget").disabled=true;
+  try{await api("/api/admin/budget",{method:"POST",body:JSON.stringify({daily_budget_units:value})});show("Đã cập nhật ngân sách ngày.","ok");await loadAll();}
+  catch(e){show("Không thể lưu ngân sách: "+e.message,"error");}
+  finally{$("saveBudget").disabled=false;}
+}
 function serviceName(id){return ({website:"Tạo website","video-prompts":"Prompt video",logo:"Thiết kế logo","business-content":"Nội dung kinh doanh",documents:"Tài liệu"})[id]||id;}
 function renderOverview(data){
   overview=data;
   $("users").textContent=data.users??0;
   $("orders").textContent=(data.orders_by_status||[]).reduce((n,x)=>n+Number(x.total||0),0);
   $("usage").textContent=(data.usage_by_status||[]).reduce((n,x)=>n+Number(x.total||0),0);
+  $("generationState").textContent=data.generation_enabled?"Đang bật":"Đang tắt";
+  $("generationBtn").textContent=data.generation_enabled?"Tắt thử nghiệm AI":"Bật thử nghiệm AI";
+  $("generationBtn").className=data.generation_enabled?"danger":"secondary";
+  $("generationBtn").disabled=false;
+  $("dailyBudget").textContent=Number(data.daily_budget_units||0).toLocaleString("vi-VN");
+  $("budgetInput").value=Number(data.daily_budget_units||0);
+  $("saveBudget").disabled=false;
+  $("todayUnits").textContent=Number(data.today_usage?.estimated_units||0).toLocaleString("vi-VN")+" units";
+  $("todayRequests").textContent=Number(data.today_usage?.requests||0)+" lượt · thực tế "+Number(data.today_usage?.actual_units||0)+" units";
   const paused=Boolean(data.global_ai_pause);
   $("pauseState").textContent=paused?"Đang tạm dừng":"Đang mở";
   $("pauseBtn").textContent=paused?"Mở khóa AI":"Tạm dừng AI";
@@ -185,6 +217,8 @@ async function loadAll(){
 }
 $("saveApi").addEventListener("click",()=>{localStorage.setItem("aib_api_base",apiRoot());loadAll();});
 $("refresh").addEventListener("click",loadAll);
+$("generationBtn").addEventListener("click",()=>toggleGeneration(!overview?.generation_enabled));
+$("saveBudget").addEventListener("click",saveBudget);
 $("loadOrders").addEventListener("click",loadOrders);
 $("orderFilter").addEventListener("change",loadOrders);
 $("toQuote").addEventListener("click",()=>updateOrder("awaiting_payment"));
