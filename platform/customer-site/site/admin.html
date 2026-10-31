@@ -22,7 +22,7 @@
 </div>
 <section class="card"><h2>Sản phẩm</h2><label for="productSearch">Tìm sản phẩm</label><input id="productSearch" type="search" placeholder="Nhập tên hoặc mô tả..."><div class="scroll"><table><thead><tr><th>Tên</th><th>Giá</th><th>Hiển thị</th><th>Thao tác</th></tr></thead><tbody id="products"><tr><td colspan="4">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
 <section class="card"><h2>Nhật ký hoạt động</h2><p class="muted">100 thao tác quản trị gần nhất.</p><div class="scroll"><table><thead><tr><th>Thời gian</th><th>Hành động</th><th>Đối tượng</th><th>Chi tiết</th></tr></thead><tbody id="auditLog"><tr><td colspan="4">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
-<section class="card"><h2>Đơn hàng</h2><label for="orderSearch">Tìm đơn hàng</label><input id="orderSearch" type="search" placeholder="Tên, email, mã đơn hoặc trạng thái..."><button class="secondary" id="exportOrders">Xuất CSV</button><div class="scroll"><table><thead><tr><th>Thời gian</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead><tbody id="orders"><tr><td colspan="6">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
+<section class="card"><h2>Đơn hàng</h2><label for="orderSearch">Tìm đơn hàng</label><input id="orderSearch" type="search" placeholder="Tên, email, mã đơn hoặc trạng thái..."><button class="secondary" id="exportOrders">Xuất CSV</button><div class="scroll"><table><thead><tr><th>Thời gian</th><th>Khách hàng</th><th>Sản phẩm</th><th>Tổng tiền</th><th>Thanh toán</th><th>Bàn giao</th><th>Cập nhật</th></tr></thead><tbody id="orders"><tr><td colspan="6">Chưa tải dữ liệu</td></tr></tbody></table></div></section>
 </div>
 <div id="message" class="notice hidden" role="status"></div>
 </main>
@@ -52,7 +52,8 @@ async function loadAll(){
   const tr=document.createElement("tr");
   const values=[o.created_at,o.customer_name+" · "+o.customer_email,o.product_name_snapshot+" × "+o.quantity,money(o.total_vnd)];
   values.forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.append(td);});
-  const statusTd=document.createElement("td"),select=document.createElement("select");["new","confirmed","completed","cancelled"].forEach(s=>{const op=document.createElement("option");op.value=s;op.textContent=({new:"Mới",confirmed:"Đã xác nhận",completed:"Hoàn tất",cancelled:"Đã hủy"})[s];select.append(op);});select.value=o.status;statusTd.append(select);tr.append(statusTd);
+  const paymentTd=document.createElement("td"),payment=document.createElement("select");["pending","paid","refunded"].forEach(s=>{const op=document.createElement("option");op.value=s;op.textContent=({pending:"Chưa thanh toán",paid:"Đã thanh toán",refunded:"Đã hoàn tiền"})[s];payment.append(op);});payment.value=o.payment_status||"pending";paymentTd.append(payment);tr.append(paymentTd);
+  const deliveryTd=document.createElement("td"),delivery=document.createElement("select");["pending","delivered"].forEach(s=>{const op=document.createElement("option");op.value=s;op.textContent=({pending:"Chưa bàn giao",delivered:"Đã bàn giao"})[s];delivery.append(op);});delivery.value=o.delivery_status||"pending";deliveryTd.append(delivery);tr.append(deliveryTd);
   const actionTd=document.createElement("td"),details=document.createElement("button");details.className="secondary";details.textContent="Chi tiết";details.addEventListener("click",()=>{
    const existing=tr.nextElementSibling;if(existing&&existing.dataset.detailFor===o.id){existing.remove();details.textContent="Chi tiết";return;}
    const row=document.createElement("tr");row.dataset.detailFor=o.id;const cell=document.createElement("td");cell.colSpan=6;
@@ -61,7 +62,7 @@ async function loadAll(){
    fields.forEach(([label,value])=>{const p=document.createElement("p"),strong=document.createElement("strong");strong.textContent=label+": ";p.append(strong,document.createTextNode(value));panel.append(p);});
    cell.append(panel);row.append(cell);tr.after(row);details.textContent="Ẩn chi tiết";
   });
-  const save=document.createElement("button");save.textContent="Lưu trạng thái";save.addEventListener("click",async()=>{save.disabled=true;try{await api("/api/admin/orders/"+o.id,{method:"PATCH",body:JSON.stringify({status:select.value})});await loadAll();notify("Đã cập nhật đơn hàng.");}catch(e){notify(e.message,true);}finally{save.disabled=false;}});
+  const save=document.createElement("button");save.textContent="Lưu thanh toán / bàn giao";save.addEventListener("click",async()=>{save.disabled=true;try{await api("/api/admin/orders/"+o.id,{method:"PATCH",body:JSON.stringify({payment_status:payment.value,delivery_status:delivery.value})});await loadAll();notify("Đã cập nhật đơn hàng.");}catch(e){notify(e.message==="payment_required_before_delivery"?"Cần xác nhận đã thanh toán trước khi đánh dấu bàn giao.":e.message,true);}finally{save.disabled=false;}});
   actionTd.append(details,save);tr.append(actionTd);$("orders").append(tr);
  });
  if(!(orders.orders||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=6;td.textContent="Chưa có đơn hàng.";tr.append(td);$("orders").append(tr);}
@@ -93,7 +94,7 @@ $("productForm").addEventListener("submit",async e=>{e.preventDefault();const bt
 $("exportOrders").addEventListener("click",async()=>{
  try{
   const data=await api("/api/admin/orders");
-  const columns=["created_at","customer_name","customer_email","product_name_snapshot","quantity","unit_price_vnd","total_vnd","note","status"];
+  const columns=["created_at","customer_name","customer_email","product_name_snapshot","quantity","unit_price_vnd","total_vnd","note","payment_status","delivery_status"];
   const csv=[columns.join(","),...(data.orders||[]).map(o=>columns.map(k=>{const v=String(o[k]??"").replace(/"/g,'""');return '"'+v+'"';}).join(","))].join("\\r\\n");
   const blob=new Blob(["\\uFEFF"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
   a.href=url;a.download="don-hang.csv";a.click();URL.revokeObjectURL(url);notify("Đã xuất danh sách đơn hàng.");
