@@ -125,7 +125,7 @@ async function refreshOrders(){
   item.append(title,document.createTextNode(" "),state,brief,amount);
   if(o.admin_note){const note=document.createElement("p");note.className="muted";note.textContent="Ghi chú: "+o.admin_note;item.append(note);}
   if(o.preview_text){const preview=document.createElement("details");const summary=document.createElement("summary");summary.textContent="Xem nội dung xem trước";const body=document.createElement("pre");body.style.whiteSpace="pre-wrap";body.textContent=o.preview_text;preview.append(summary,body);item.append(preview);}
-  if(o.delivery_url && o.status==="delivered"){const link=document.createElement("a");link.href=o.delivery_url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Mở sản phẩm đã bàn giao";item.append(link);}
+  if(o.delivery_url && o.status==="delivered"){const link=document.createElement("a");link.href=o.delivery_url;link.textContent="Tải website ZIP đã bàn giao";item.append(link);}
   $("orders").append(item);
  });
  if(!(data.orders||[]).length)$("orders").textContent="Bạn chưa có đơn hàng.";
