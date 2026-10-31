@@ -15,5 +15,8 @@
   "devDependencies": {
     "wrangler": "^4.0.0"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "fflate": "^0.8.2"
+  }
 }
