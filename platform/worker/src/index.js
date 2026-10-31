@@ -822,6 +822,14 @@ export default {
       const body = await readJson(request);
       const serviceId = body?.service_id;
       const brief = typeof body?.brief === "string" ? body.brief.trim() : "";
+      const revisionOrderId = typeof body?.order_id === "string" ? body.order_id : "";
+      let revisionOrder = null;
+      if (revisionOrderId) {
+        if (serviceId !== "website" || !/^[0-9a-f-]{36}$/i.test(revisionOrderId)) return json({ error: "invalid_revision_order" }, 400, env, request);
+        revisionOrder = await env.DB.prepare("SELECT id, preview_text, customer_brief, status FROM orders WHERE id = ? AND user_id = ? AND service_id = 'website' LIMIT 1").bind(revisionOrderId,user.id).first();
+        if (!revisionOrder) return json({ error: "order_not_found" }, 404, env, request);
+        if (revisionOrder.status !== "pending_review") return json({ error: "revision_locked", message: "Chỉ có thể chỉnh sửa khi đơn còn chờ duyệt, trước khi báo giá." }, 409, env, request);
+      }
       if (!["business-content", "website"].includes(serviceId)) {
         return json({ error: "service_not_ready", message: "Dịch vụ này chưa được kết nối AI." }, 400, env, request);
       }
@@ -878,7 +886,9 @@ export default {
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: isWebsite
-              ? "Lập cấu hình website và dữ liệu mẫu theo mô tả sau. Chỉ trả JSON đúng schema. Mô tả: " + brief
+              ? (revisionOrder
+                ? "Chỉnh sửa cấu hình website hiện tại theo yêu cầu khách. Giữ nguyên các phần không được yêu cầu thay đổi. Chỉ trả JSON đúng schema. Cấu hình hiện tại: " + revisionOrder.preview_text + ". Yêu cầu chỉnh sửa: " + brief
+                : "Lập cấu hình website và dữ liệu mẫu theo mô tả sau. Chỉ trả JSON đúng schema. Mô tả: " + brief)
               : "Hãy tạo nội dung theo yêu cầu sau. Trình bày có tiêu đề và các mục rõ ràng. Yêu cầu: " + brief },
           ],
           max_tokens: isWebsite ? 900 : 512,
@@ -909,13 +919,20 @@ export default {
           env.DB.prepare("UPDATE quota_reservations SET status='settled', settled_at=CURRENT_TIMESTAMP WHERE id=? AND status='reserved'").bind(reservationId),
           env.DB.prepare("INSERT INTO ai_generations (id,user_id,usage_event_id,service_id,input_brief,output_text,provider,model) VALUES (?,?,?,?,?,?,?,?)")
             .bind(crypto.randomUUID(),user.id,eventId,serviceId,brief,storedOutput,"cloudflare-workers-ai","@cf/meta/llama-3.2-1b-instruct"),
-          ...(isWebsite ? [env.DB.prepare(
+          ...(isWebsite && revisionOrder ? [
+            env.DB.prepare("UPDATE orders SET preview_text = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ? AND status = 'pending_review'")
+              .bind(storedOutput,revisionOrder.id,user.id),
+            env.DB.prepare("INSERT INTO order_revisions (id,order_id,user_id,request_text,preview_text) VALUES (?,?,?,?,?)")
+              .bind(crypto.randomUUID(),revisionOrder.id,user.id,brief,storedOutput),
+          ] : isWebsite ? [env.DB.prepare(
             "INSERT INTO orders (id, user_id, service_id, status, customer_brief, preview_text, amount_vnd) VALUES (?, ?, 'website', 'pending_review', ?, ?, 0)"
           ).bind(crypto.randomUUID(),user.id,brief,storedOutput)] : []),
         ]);
-        const websiteOrder = isWebsite ? await env.DB.prepare(
-          "SELECT id FROM orders WHERE user_id = ? AND service_id = 'website' AND customer_brief = ? AND preview_text = ? ORDER BY created_at DESC LIMIT 1"
-        ).bind(user.id,brief,storedOutput).first() : null;
+        const websiteOrder = isWebsite ? (revisionOrder
+          ? { id: revisionOrder.id, status: "pending_review" }
+          : await env.DB.prepare(
+            "SELECT id FROM orders WHERE user_id = ? AND service_id = 'website' AND customer_brief = ? AND preview_text = ? ORDER BY created_at DESC LIMIT 1"
+          ).bind(user.id,brief,storedOutput).first()) : null;
         return json({ ok: true, order: websiteOrder ? { id: websiteOrder.id, status: "pending_review" } : null, generation: isWebsite
           ? { website_config: websiteConfig, service_id: serviceId, model: "@cf/meta/llama-3.2-1b-instruct" }
           : { text: output, service_id: serviceId, model: "@cf/meta/llama-3.2-1b-instruct" },
