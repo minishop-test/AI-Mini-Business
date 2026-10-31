@@ -16,7 +16,7 @@ Khách hàng cần có tài khoản Cloudflare, Node.js và npm. Website này c�
 Từ thư mục `platform/customer-site`, chạy `npm install` rồi `npm run build:zip`. Mặc định, ZIP được tạo tại `dist/customer-store.zip`. Có thể truyền cấu hình khi đóng gói:
 
 \`\`\`bash
-node tools/build-zip.mjs --api-url https://YOUR-WORKER.workers.dev --pages-origin https://YOUR-STORE.pages.dev --output ./dist/customer-store.zip
+node tools/build-zip.mjs --config ./store.json --api-url https://YOUR-WORKER.workers.dev --pages-origin https://YOUR-STORE.pages.dev --output ./dist/customer-store.zip
 \`\`\`
 
 Bộ đóng gói bao gồm mã nguồn Worker, schema D1, cấu hình Wrangler, storefront, trang quản trị và README. Nó không chứa `ADMIN_API_TOKEN`, API key hoặc dữ liệu khách hàng. Đây là ZIP mã nguồn để khách hàng tự triển khai, không phải website đã được host sẵn. Sau khi giải nén, khách hàng vẫn phải tạo D1 database, cập nhật database ID, đặt secret, triển khai Worker và tải thư mục `site` lên Pages theo hướng dẫn bên dưới.
@@ -50,3 +50,22 @@ Các endpoint:
 - Bảo vệ ADMIN_API_TOKEN; nếu lộ, hãy thay secret ngay.
 - Đặt giới hạn chi tiêu/cảnh báo ở Cloudflare. Không bật tự động nâng cấp hoặc overage nếu chưa hiểu chi phí.
 - Dữ liệu thuộc D1 database của chính khách hàng. Khách hàng phải tự sao lưu và quản lý dữ liệu.
+
+### Cá nhân hóa ZIP theo yêu cầu
+Tạo file JSON cấu hình (ví dụ `store.json`) trước khi đóng gói:
+```json
+{
+  "storeName": "Shop Hoa Mộc",
+  "tagline": "Hoa tươi cho những dịp đặc biệt",
+  "primaryColor": "#2563eb",
+  "products": [
+    {
+      "name": "Bó hoa hướng dương",
+      "description": "Bó hoa tươi, gói giấy kraft",
+      "priceVnd": 350000,
+      "imageUrl": "https://example.com/hoa.jpg"
+    }
+  ]
+}
+```
+Chạy lệnh có `--config ./store.json`. Tên cửa hàng, câu giới thiệu, màu chủ đạo và tối đa 30 sản phẩm mẫu hợp lệ sẽ được đưa vào ZIP. Sản phẩm mẫu được ghi vào `seed-products.sql`; sau khi tạo D1, khách phải chạy file SQL này một lần để nhập sản phẩm. Ảnh chỉ nhận đường dẫn HTTPS. Công cụ không tự tải ảnh hoặc xác minh quyền sử dụng ảnh. Dữ liệu cấu hình cần được kiểm tra trước khi đóng gói và không nên chứa thông tin cá nhân nhạy cảm.
