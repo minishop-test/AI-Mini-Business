@@ -17,3 +17,8 @@ migrations_dir = "migrations"
 
 [ai]
 binding = "AI"
+
+# Private object storage for paid customer deliverables.
+[[r2_buckets]]
+binding = "PACKAGES"
+bucket_name = "ai-mini-business-packages"
