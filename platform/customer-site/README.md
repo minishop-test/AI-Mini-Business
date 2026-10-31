@@ -32,13 +32,17 @@ Bộ đóng gói bao gồm mã nguồn Worker, schema D1, cấu hình Wrangler, 
 8. Mở `site/index.html`, thay `API_BASE` bằng URL Worker đã triển khai và tải thư mục `site` lên Cloudflare Pages.
 
 ## Quản trị
-Mở `admin.html` sau khi triển khai trang Pages. Nhập `ADMIN_API_TOKEN` đã đặt bằng Wrangler secret. Trang quản trị chỉ giữ token trong bộ nhớ của tab hiện tại, không ghi token vào file hoặc localStorage; đăng xuất hoặc tải lại trang sẽ xóa token. Token vẫn được gửi từ trình duyệt tới Worker để gọi API, vì vậy chỉ dùng trang quản trị trên thiết bị đáng tin cậy, bật HTTPS, không chia sẻ token và đổi secret ngay nếu nghi ngờ bị lộ. Với cửa hàng có yêu cầu bảo mật cao, nên thay mô hình token quản trị đơn giản này bằng hệ thống đăng nhập riêng có phiên ngắn hạn, MFA và audit log.
+
+Mở `admin.html` sau khi triển khai trang Pages. Nhập `ADMIN_API_TOKEN` đã đặt bằng Wrangler secret. Backend xác thực token một lần qua `POST /api/admin/login`, sau đó cấp session token ngẫu nhiên có thời hạn 30 phút. Database chỉ lưu SHA-256 hash của session token; session hết hạn tự động bị từ chối. Nút đăng xuất gọi endpoint thu hồi session. Trình duyệt chỉ giữ session token trong bộ nhớ tab, không ghi vào localStorage/sessionStorage. Nếu nghi ngờ token quản trị gốc bị lộ, hãy thay secret ngay.
+
+Bảng `admin_sessions` đã có trong `schema.sql`; khi triển khai database mới, chỉ cần chạy schema theo hướng dẫn. Nếu đã tạo database trước đó, áp dụng migration mới:
+`npx wrangler d1 execute customer-store-db --remote --file=./migrations/0002_admin_sessions.sql`.
 
 Các endpoint:
 - `GET /api/products`: danh sách sản phẩm đang hiển thị.
 - `POST /api/orders`: tạo đơn hàng.
 - `GET /api/admin/orders`: xem đơn hàng (admin).
-- `GET /api/admin/products`: xem tất cả sản phẩm kể cả sản phẩm đang ẩn (admin).
+- `POST /api/admin/login`: đổi token quản trị thành phiên đăng nhập ngắn hạn.\n- `POST /api/admin/logout`: thu hồi phiên hiện tại.\n- `GET /api/admin/products`: xem tất cả sản phẩm kể cả sản phẩm đang ẩn (admin).
 - `POST /api/admin/products`: tạo sản phẩm (admin).
 - `PATCH /api/admin/products/:id`: bật/tắt hiển thị sản phẩm (admin).
 - `PATCH /api/admin/orders/:id`: cập nhật trạng thái đơn (admin).
@@ -47,7 +51,7 @@ Các endpoint:
 - Đây là starter template để thử nghiệm, chưa phải nền tảng thương mại điện tử production-ready.
 - Chưa có đăng nhập khách hàng, thanh toán trực tuyến, email, upload ảnh, tồn kho, vận chuyển hoặc chống bot nâng cao.
 - Không lưu thông tin thẻ thanh toán. Chỉ bổ sung cổng thanh toán chính thức sau khi chủ website tự đăng ký tài khoản nhà cung cấp.
-- Bảo vệ ADMIN_API_TOKEN; nếu lộ, hãy thay secret ngay.
+- Bảo vệ ADMIN_API_TOKEN; nếu lộ, hãy thay secret ngay. Session 30 phút không thay thế việc bảo vệ token gốc.
 - Đặt giới hạn chi tiêu/cảnh báo ở Cloudflare. Không bật tự động nâng cấp hoặc overage nếu chưa hiểu chi phí.
 - Dữ liệu thuộc D1 database của chính khách hàng. Khách hàng phải tự sao lưu và quản lý dữ liệu.
 
