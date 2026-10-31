@@ -101,6 +101,16 @@ export default {
 
       if (url.pathname === "/api/admin/login" && request.method === "POST") {
         const data = await bodyJson(request, 1000);
+        const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
+        const ipHash = await hashSessionToken("login:" + clientIp);
+        const attempts = await env.DB.prepare("SELECT attempts, window_started FROM admin_login_attempts WHERE ip_hash=?").bind(ipHash).first();
+        const windowActive = attempts && (Date.now() - Date.parse(attempts.window_started + " UTC")) < 15 * 60 * 1000;
+        if (windowActive && attempts.attempts >= 5) return json({ error: "login_rate_limited", message: "Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau 15 phút." }, 429, request, env);
+        if (windowActive) {
+          await env.DB.prepare("UPDATE admin_login_attempts SET attempts=attempts+1 WHERE ip_hash=?").bind(ipHash).run();
+        } else {
+          await env.DB.prepare("INSERT INTO admin_login_attempts (ip_hash,attempts,window_started) VALUES (?,1,CURRENT_TIMESTAMP) ON CONFLICT(ip_hash) DO UPDATE SET attempts=1,window_started=CURRENT_TIMESTAMP").bind(ipHash).run();
+        }
         const expected = env.ADMIN_API_TOKEN || "";
         const supplied = typeof data?.token === "string" ? data.token : "";
         if (!expected || !supplied || supplied.length > 256) return json({ error: "unauthorized" }, 401, request, env);
@@ -108,6 +118,7 @@ export default {
         const length = Math.max(supplied.length, expected.length);
         for (let i = 0; i < length; i++) mismatch |= (supplied.charCodeAt(i) || 0) ^ (expected.charCodeAt(i) || 0);
         if (mismatch !== 0) return json({ error: "unauthorized" }, 401, request, env);
+        await env.DB.prepare("DELETE FROM admin_login_attempts WHERE ip_hash=?").bind(ipHash).run();
         const sessionToken = [...crypto.getRandomValues(new Uint8Array(32))].map(byte => byte.toString(16).padStart(2, "0")).join("");
         const tokenHash = await hashSessionToken(sessionToken);
         await env.DB.prepare("INSERT INTO admin_sessions (token_hash, expires_at) VALUES (?, datetime('now','+30 minutes'))").bind(tokenHash).run();
@@ -131,7 +142,7 @@ export default {
       }
 
       if (url.pathname === "/api/admin/orders" && request.method === "GET") {
-        if (!isAdmin(request, env)) return json({ error: "unauthorized" }, 401, request, env);
+        if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
         const rows = await env.DB.prepare(
           "SELECT id,customer_name,customer_email,customer_phone,product_name_snapshot,unit_price_vnd,quantity,total_vnd,note,status,created_at FROM orders ORDER BY created_at DESC LIMIT 200"
         ).all();
@@ -139,7 +150,7 @@ export default {
       }
 
       if (url.pathname === "/api/admin/products" && request.method === "POST") {
-        if (!isAdmin(request, env)) return json({ error: "unauthorized" }, 401, request, env);
+        if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
         const data = await bodyJson(request);
         if (!data || typeof data.name !== "string" || data.name.trim().length < 1 || data.name.length > 160 ||
             typeof (data.description || "") !== "string" || (data.description || "").length > 3000 ||
@@ -156,7 +167,7 @@ export default {
 
       const productMatch = url.pathname.match(/^\/api\/admin\/products\/([0-9a-f-]{36})$/i);
       if (productMatch && request.method === "PATCH") {
-        if (!isAdmin(request, env)) return json({ error: "unauthorized" }, 401, request, env);
+        if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
         const data = await bodyJson(request, 1000);
         if (!data || typeof data.active !== "boolean") return json({ error: "invalid_product_status" }, 400, request, env);
         const result = await env.DB.prepare("UPDATE products SET active=? WHERE id=?").bind(data.active ? 1 : 0, productMatch[1]).run();
@@ -166,7 +177,7 @@ export default {
 
       const statusMatch = url.pathname.match(/^\/api\/admin\/orders\/([0-9a-f-]{36})$/i);
       if (statusMatch && request.method === "PATCH") {
-        if (!isAdmin(request, env)) return json({ error: "unauthorized" }, 401, request, env);
+        if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
         const data = await bodyJson(request, 1000);
         const allowed = ["new","confirmed","completed","cancelled"];
         if (!data || !allowed.includes(data.status)) return json({ error: "invalid_status" }, 400, request, env);
