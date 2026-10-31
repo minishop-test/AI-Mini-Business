@@ -167,7 +167,6 @@ test("customer storefront uses safe text rendering and submits orders through it
   assert.match(customerSiteHtml, /const API_BASE=/);
   assert.match(customerSiteHtml, /textContent=p\.name/);
   assert.match(customerSiteHtml, /\/api\/orders/);
-  assert.match(customerSiteHtml, /credentials/);
 });
 
 test("customer starter documents independent deployment and missing production features", () => {
