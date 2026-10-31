@@ -93,6 +93,14 @@ export default {
         return json({ ok: true, order: { id: orderId, total_vnd: total, status: "new" } }, 201, request, env);
       }
 
+      if (url.pathname === "/api/admin/products" && request.method === "GET") {
+        if (!isAdmin(request, env)) return json({ error: "unauthorized" }, 401, request, env);
+        const rows = await env.DB.prepare(
+          "SELECT id,name,description,price_vnd,image_url,active,created_at FROM products ORDER BY created_at DESC LIMIT 200"
+        ).all();
+        return json({ products: rows.results || [] }, 200, request, env);
+      }
+
       if (url.pathname === "/api/admin/orders" && request.method === "GET") {
         if (!isAdmin(request, env)) return json({ error: "unauthorized" }, 401, request, env);
         const rows = await env.DB.prepare(
@@ -115,6 +123,16 @@ export default {
           "INSERT INTO products (id,name,description,price_vnd,image_url) VALUES (?,?,?,?,?)"
         ).bind(productId,data.name.trim(),(data.description||"").trim(),data.price_vnd,data.image_url||null).run();
         return json({ ok: true, product_id: productId }, 201, request, env);
+      }
+
+      const productMatch = url.pathname.match(/^\/api\/admin\/products\/([0-9a-f-]{36})$/i);
+      if (productMatch && request.method === "PATCH") {
+        if (!isAdmin(request, env)) return json({ error: "unauthorized" }, 401, request, env);
+        const data = await bodyJson(request, 1000);
+        if (!data || typeof data.active !== "boolean") return json({ error: "invalid_product_status" }, 400, request, env);
+        const result = await env.DB.prepare("UPDATE products SET active=? WHERE id=?").bind(data.active ? 1 : 0, productMatch[1]).run();
+        if (!result.meta?.changes) return json({ error: "product_not_found" }, 404, request, env);
+        return json({ ok: true, active: data.active }, 200, request, env);
       }
 
       const statusMatch = url.pathname.match(/^\/api\/admin\/orders\/([0-9a-f-]{36})$/i);
