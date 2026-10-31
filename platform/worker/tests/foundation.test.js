@@ -372,9 +372,16 @@ test("customer admin dashboard provides local product and order search fields", 
   assert.match(customerAdmin, /toLocaleLowerCase\("vi"\)/);
 });
 
+test("customer storefront and API do not collect or expose customer phone numbers", () => {
+  assert.doesNotMatch(customerStorefront, /customerPhone|customer_phone/);
+  assert.doesNotMatch(customerAdmin, /customer_phone|Điện thoại/);
+  assert.doesNotMatch(customerSiteApi, /customer_phone/);
+  assert.match(customerSiteApi, /INSERT INTO orders \(id,customer_name,customer_email,product_id/);
+});
+
 test("customer admin shows expandable order details and responsive mobile layout", () => {
   assert.match(customerAdmin, /details\.textContent="Chi tiết"/);
-  assert.match(customerAdmin, /customer_phone/);
+  assert.doesNotMatch(customerAdmin, /customer_phone/);
   assert.match(customerAdmin, /unit_price_vnd/);
   assert.match(customerAdmin, /dataset\.detailFor/);
   assert.match(customerAdmin, /@media\(max-width:640px\)/);
