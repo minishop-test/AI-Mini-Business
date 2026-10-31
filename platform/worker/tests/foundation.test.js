@@ -367,6 +367,15 @@ test("customer storefront records admin mutations and exposes a protected read-o
   assert.match(customerSiteReadme, /0003_admin_audit_log\.sql/);
 });
 
+test("customer storefront admin can edit product fields and export orders as CSV", () => {
+  assert.match(customerSiteApi, /UPDATE products SET name=\?,description=\?,price_vnd=\?,image_url=\?,active=\?/);
+  assert.match(customerSiteApi, /product\.updated/);
+  assert.match(customerSiteApi, /invalid_product_price/);
+  assert.match(customerSiteAdmin, /id="exportOrders"/);
+  assert.match(customerSiteAdmin, /don-hang\.csv/);
+  assert.match(customerSiteAdmin, /api\("/api\/admin\/products\/"+p\.id/);
+});
+
 test("customer can edit website draft fields and save through authenticated revision endpoint", () => {
   assert.match(api, /websiteConfigMatch/);
   assert.match(api, /UPDATE orders SET preview_text/);
