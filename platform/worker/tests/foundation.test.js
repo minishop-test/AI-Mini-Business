@@ -285,6 +285,17 @@ test("bundled website template contains isolated customer frontend, API and depl
   assert.match(customerTemplate, /customer-store-api/);
 });
 
+test("customer dashboard renders a visual website preview with safe DOM text and bounded images", () => {
+  assert.match(customer, /id="websiteLivePreview"/);
+  assert.match(customer, /function renderStorePreview/);
+  assert.match(customer, /productName\.textContent/);
+  assert.match(customer, /name\.textContent/);
+  assert.match(customer, /primaryColor/);
+  assert.match(customer, /products\.slice\(0,8\)/);
+  assert.match(customer, /https:/);
+  assert.match(customer, /renderStorePreview\(visual,cfg\)/);
+});
+
 test("website revisions are limited to the customer's own pending-review order", () => {
   assert.match(api, /WHERE id = \? AND user_id = \? AND service_id = 'website'/);
   assert.match(api, /revisionOrder.status !== "pending_review"/);
