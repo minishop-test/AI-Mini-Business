@@ -256,15 +256,17 @@ export default {
       if (downloadMatch && request.method === "GET") {
         if (!env.DELIVERIES) return json({ error: "private_storage_not_configured" }, 503, request, env);
         const tokenHash = await hashSessionToken(downloadMatch[1]);
-        const consumed = await env.DB.prepare("UPDATE delivery_download_tokens SET used_at=CURRENT_TIMESTAMP WHERE token_hash=? AND used_at IS NULL AND expires_at>CURRENT_TIMESTAMP RETURNING order_id")
-          .bind(tokenHash).first();
-        if (!consumed) return json({ error: "download_link_invalid_or_used" }, 410, request, env);
-        const order = await env.DB.prepare("SELECT payment_status,delivery_status FROM orders WHERE id=?").bind(consumed.order_id).first();
+        const token = await env.DB.prepare("SELECT order_id FROM delivery_download_tokens WHERE token_hash=? AND used_at IS NULL AND expires_at>CURRENT_TIMESTAMP").bind(tokenHash).first();
+        if (!token) return json({ error: "download_link_invalid_or_used" }, 410, request, env);
+        const order = await env.DB.prepare("SELECT payment_status,delivery_status FROM orders WHERE id=?").bind(token.order_id).first();
         if (!order || order.payment_status !== "paid" || order.delivery_status !== "delivered") return json({ error: "delivery_not_authorized" }, 403, request, env);
-        const file = await env.DB.prepare("SELECT object_key,file_name,content_type FROM order_deliveries WHERE order_id=?").bind(consumed.order_id).first();
+        const file = await env.DB.prepare("SELECT object_key,file_name,content_type FROM order_deliveries WHERE order_id=?").bind(token.order_id).first();
         if (!file) return json({ error: "delivery_file_missing" }, 404, request, env);
         const object = await env.DELIVERIES.get(file.object_key);
         if (!object) return json({ error: "delivery_file_missing" }, 404, request, env);
+        // Consume only after authorization and object retrieval; the conditional UPDATE makes concurrent use one-time.
+        const consumed = await env.DB.prepare("UPDATE delivery_download_tokens SET used_at=CURRENT_TIMESTAMP WHERE token_hash=? AND used_at IS NULL AND expires_at>CURRENT_TIMESTAMP RETURNING order_id").bind(tokenHash).first();
+        if (!consumed) return json({ error: "download_link_invalid_or_used" }, 410, request, env);
         const safeName = file.file_name.replace(/["\\\\\r\n]/g, "_");
         return new Response(object.body, { status: 200, headers: {
           "content-type": file.content_type, "content-length": String(object.size),
@@ -285,6 +287,10 @@ export default {
         if (!["pending","paid","refunded"].includes(payment)) return json({ error: "invalid_payment_status" }, 400, request, env);
         if (!["pending","delivered"].includes(delivery)) return json({ error: "invalid_delivery_status" }, 400, request, env);
         if (delivery === "delivered" && payment !== "paid") return json({ error: "payment_required_before_delivery" }, 409, request, env);
+        if (delivery === "delivered") {
+          const deliveryFile = await env.DB.prepare("SELECT order_id FROM order_deliveries WHERE order_id=?").bind(statusMatch[1]).first();
+          if (!deliveryFile) return json({ error: "delivery_file_required_before_completion" }, 409, request, env);
+        }
         const result = await env.DB.prepare("UPDATE orders SET payment_status=?,delivery_status=?,status=CASE WHEN ?='delivered' THEN 'completed' ELSE status END WHERE id=?")
           .bind(payment,delivery,delivery,statusMatch[1]).run();
         if (!result.meta?.changes) return json({ error: "order_not_found" }, 404, request, env);
