@@ -290,7 +290,7 @@ test("website revisions are limited to the customer's own pending-review order",
   assert.match(api, /revisionOrder.status !== "pending_review"/);
   assert.match(api, /UPDATE orders SET preview_text = \?[^\n]*status = 'pending_review'/);
   assert.match(api, /INSERT INTO order_revisions/);
-  assert.match(api, /revisionOrder \? \{/);
+  assert.match(api, /const websiteOrder = isWebsite \? \(revisionOrder/);
   assert.match(customer, /Yêu cầu AI chỉnh sửa website/);
   assert.match(customer, /order_id:o.id/);
   assert.match(customer, /Gửi yêu cầu chỉnh sửa/);
