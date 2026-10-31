@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cửa hàng của tôi</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#172033;font:16px/1.55 system-ui,sans-serif}header{background:#172033;color:white;padding:32px 6%}main{max-width:1000px;margin:28px auto;padding:0 16px}h1{margin:0}#products{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}.card{background:white;border:1px solid #e4e9f0;border-radius:14px;padding:18px}.card img{width:100%;height:160px;object-fit:cover;border-radius:9px}.muted{color:#64748b;font-size:14px}button{background:#2563eb;color:white;border:0;border-radius:9px;padding:11px 15px;font:inherit;cursor:pointer}input,textarea{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px;font:inherit;margin:5px 0 12px}label{font-weight:600;font-size:14px}.hidden{display:none}.price{font-size:20px;font-weight:750}.notice{background:#eff6ff;padding:12px;border-radius:9px;margin-top:12px}@media(max-width:600px){header{padding:24px 18px}}
+</style>
+</head>
+<body>
+<header><h1 id="storeName">Cửa hàng của tôi</h1><p class="muted" style="color:#cbd5e1">Sản phẩm và dịch vụ</p></header>
+<main>
+<h2>Sản phẩm</h2><div id="products"><p>Đang tải sản phẩm…</p></div>
+<section class="card hidden" id="orderPanel" style="margin-top:22px">
+<h2>Đặt hàng: <span id="selectedProduct"></span></h2>
+<form id="orderForm">
+<label>Họ và tên</label><input id="customerName" maxlength="120" required>
+<label>Email</label><input id="customerEmail" type="email" maxlength="254" required>
+<label>Số điện thoại (không bắt buộc)</label><input id="customerPhone" maxlength="30">
+<label>Số lượng</label><input id="quantity" type="number" min="1" max="20" value="1" required>
+<label>Ghi chú</label><textarea id="note" maxlength="1000"></textarea>
+<button type="submit">Gửi đơn hàng</button>
+</form><div id="orderMessage" class="notice hidden"></div>
+</section>
+</main>
+<script>
+const API_BASE="https://REPLACE-WITH-YOUR-WORKER.workers.dev";
+let selected=null;
+const $=id=>document.getElementById(id);
+const money=n=>Number(n).toLocaleString("vi-VN")+" ₫";
+async function loadProducts(){
+ try{
+  const response=await fetch(API_BASE+"/api/products");
+  if(!response.ok)throw new Error("Không tải được sản phẩm");
+  const data=await response.json();$("products").replaceChildren();
+  (data.products||[]).forEach(p=>{
+   const card=document.createElement("article");card.className="card";
+   if(p.image_url){const img=document.createElement("img");img.src=p.image_url;img.alt=p.name;img.loading="lazy";card.append(img);}
+   const name=document.createElement("h3");name.textContent=p.name;
+   const desc=document.createElement("p");desc.className="muted";desc.textContent=p.description;
+   const price=document.createElement("p");price.className="price";price.textContent=money(p.price_vnd);
+   const btn=document.createElement("button");btn.textContent="Đặt hàng";btn.addEventListener("click",()=>choose(p));
+   card.append(name,desc,price,btn);$("products").append(card);
+  });
+  if(!data.products?.length)$("products").textContent="Cửa hàng chưa có sản phẩm.";
+ }catch(error){$("products").textContent=error.message+". Hãy kiểm tra địa chỉ API.";}
+}
+function choose(product){selected=product;$("selectedProduct").textContent=product.name;$("orderPanel").classList.remove("hidden");$("orderMessage").classList.add("hidden");$("orderPanel").scrollIntoView({behavior:"smooth"});}
+$("orderForm").addEventListener("submit",async e=>{
+ e.preventDefault();const button=e.submitter;button.disabled=true;
+ try{
+  const response=await fetch(API_BASE+"/api/orders",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+   customer_name:$("customerName").value,customer_email:$("customerEmail").value,customer_phone:$("customerPhone").value,
+   product_id:selected.id,quantity:Number($("quantity").value),note:$("note").value
+  })});
+  const data=await response.json();if(!response.ok)throw new Error(data.error||"Không gửi được đơn hàng");
+  $("orderMessage").textContent="Đã nhận đơn "+data.order.id+". Tổng tiền: "+money(data.order.total_vnd)+". Cửa hàng sẽ liên hệ xác nhận."; $("orderMessage").classList.remove("hidden");$("orderForm").reset();
+ }catch(error){$("orderMessage").textContent=error.message;$("orderMessage").classList.remove("hidden");}
+ finally{button.disabled=false;}
+});
+loadProducts();
+</script>
+</body>
+</html>
