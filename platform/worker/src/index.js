@@ -252,6 +252,14 @@ export default {
           !(await rateLimit(env.DB, request, "login", "", 10, 900))) {
         return json({ error: "rate_limited", message: "Quá nhiều lần đăng nhập. Vui lòng thử lại sau 15 phút." }, 429, env, request, { "retry-after": "900" });
       }
+      if (["/api/auth/resend-verification", "/api/auth/forgot-password"].includes(url.pathname) && request.method === "POST" &&
+          !(await rateLimit(env.DB, request, "email-action", url.pathname, 3, 3600))) {
+        return json({ error: "rate_limited", message: "Bạn đã yêu cầu quá nhiều email. Vui lòng thử lại sau một giờ." }, 429, env, request, { "retry-after": "3600" });
+      }
+      if (["/api/auth/verify-email", "/api/auth/reset-password"].includes(url.pathname) && request.method === "POST" &&
+          !(await rateLimit(env.DB, request, "email-token", url.pathname, 10, 900))) {
+        return json({ error: "rate_limited", message: "Quá nhiều lần thử. Vui lòng chờ 15 phút." }, 429, env, request, { "retry-after": "900" });
+      }
 
       if (url.pathname === "/api/auth/register" && request.method === "POST") {
         const body = await readJson(request);
@@ -323,10 +331,10 @@ export default {
         ).bind(tokenHash, new Date().toISOString()).first();
         if (!action) return json({ error: "invalid_or_expired_token" }, 400, env, request);
         const result = await env.DB.batch([
-          env.DB.prepare("UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE id = ? AND email_verified_at IS NULL").bind(action.user_id),
+          env.DB.prepare("UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE id = ? AND email_verified_at IS NULL AND EXISTS (SELECT 1 FROM email_action_tokens WHERE id = ? AND used_at IS NULL AND expires_at > ?)").bind(action.user_id, action.id, new Date().toISOString()),
           env.DB.prepare("UPDATE email_action_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ? AND used_at IS NULL").bind(action.id),
         ]);
-        if (!result[1]?.meta?.changes) return json({ error: "token_already_used" }, 409, env, request);
+        if (!result[0]?.meta?.changes) return json({ error: "token_already_used" }, 409, env, request);
         return json({ ok: true, message: "Email đã được xác minh. Bạn có thể đăng nhập." }, 200, env, request);
       }
 
@@ -380,11 +388,11 @@ export default {
         const salt = crypto.getRandomValues(new Uint8Array(16));
         const passwordHash = await hashPassword(body.password, salt);
         const result = await env.DB.batch([
-          env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(`pbkdf2-sha256${PBKDF2_ITERATIONS}${bytesToBase64(salt)}${passwordHash}`, action.user_id),
+          env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ? AND EXISTS (SELECT 1 FROM email_action_tokens WHERE id = ? AND used_at IS NULL AND expires_at > ?)").bind("pbkdf2-sha256$" + PBKDF2_ITERATIONS + "$" + bytesToBase64(salt) + "$" + passwordHash, action.user_id, action.id, new Date().toISOString()),
           env.DB.prepare("UPDATE email_action_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ? AND used_at IS NULL").bind(action.id),
           env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(action.user_id),
         ]);
-        if (!result[1]?.meta?.changes) return json({ error: "token_already_used" }, 409, env, request);
+        if (!result[0]?.meta?.changes) return json({ error: "token_already_used" }, 409, env, request);
         return json({ ok: true, message: "Mật khẩu đã được thay đổi. Hãy đăng nhập lại." }, 200, env, request);
       }
 
