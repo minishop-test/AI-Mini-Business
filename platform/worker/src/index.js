@@ -724,8 +724,8 @@ export default {
       const body = await readJson(request);
       const serviceId = body?.service_id;
       const brief = typeof body?.brief === "string" ? body.brief.trim() : "";
-      if (serviceId !== "business-content") {
-        return json({ error: "service_not_ready", message: "Hiện chỉ thử nghiệm dịch vụ nội dung kinh doanh." }, 400, env, request);
+      if (!["business-content", "website"].includes(serviceId)) {
+        return json({ error: "service_not_ready", message: "Dịch vụ này chưa được kết nối AI." }, 400, env, request);
       }
       if (brief.length < 10 || brief.length > 4000) {
         return json({ error: "invalid_brief", message: "Mô tả cần từ 10 đến 4.000 ký tự." }, 400, env, request);
@@ -772,23 +772,50 @@ export default {
       }
 
       try {
+        const isWebsite = serviceId === "website";
+        const systemPrompt = isWebsite
+          ? "Bạn là chuyên gia lập kế hoạch website bán hàng. Chỉ trả về MỘT JSON object hợp lệ, không markdown, không code fence, theo schema: {\"storeName\":string,\"tagline\":string,\"primaryColor\":\"#RRGGBB\",\"pages\":[string],\"categories\":[string],\"products\":[{\"name\":string,\"description\":string,\"priceVnd\":integer,\"imageUrl\":null}],\"designNotes\":string}. Tạo tối đa 5 danh mục và 8 sản phẩm mẫu. Giá là số nguyên VND; không bịa thông tin liên hệ. Không tạo HTML, JavaScript, URL ảnh giả, thông tin thanh toán hoặc thông tin pháp lý. Nếu thiếu giá, dùng 0 và ghi chú cần khách xác nhận."
+          : "Bạn là trợ lý nội dung kinh doanh bằng tiếng Việt. Hãy tạo nội dung hữu ích, rõ ràng, thực tế, không bịa số liệu, không cam kết kết quả kinh doanh. Nếu thiếu dữ liệu, hãy ghi rõ giả định. Trả lời bằng tiếng Việt.";
         const result = await env.AI.run("@cf/meta/llama-3.2-1b-instruct", {
           messages: [
-            { role: "system", content: "Bạn là trợ lý nội dung kinh doanh bằng tiếng Việt. Hãy tạo nội dung hữu ích, rõ ràng, thực tế, không bịa số liệu, không cam kết kết quả kinh doanh. Nếu thiếu dữ liệu, hãy ghi rõ giả định. Trả lời bằng tiếng Việt." },
-            { role: "user", content: "Hãy tạo nội dung theo yêu cầu sau. Trình bày có tiêu đề và các mục rõ ràng. Yêu cầu: " + brief },
+            { role: "system", content: systemPrompt },
+            { role: "user", content: isWebsite
+              ? "Lập cấu hình website và dữ liệu mẫu theo mô tả sau. Chỉ trả JSON đúng schema. Mô tả: " + brief
+              : "Hãy tạo nội dung theo yêu cầu sau. Trình bày có tiêu đề và các mục rõ ràng. Yêu cầu: " + brief },
           ],
-          max_tokens: 512,
-          temperature: 0.5,
+          max_tokens: isWebsite ? 900 : 512,
+          temperature: 0.3,
         });
         const output = typeof result?.response === "string" ? result.response.trim() : "";
         if (!output) throw new Error("empty_model_response");
+        let websiteConfig = null;
+        if (isWebsite) {
+          const cleaned = output.replace(/^\s*\x60{3}(?:json)?\s*/i, "").replace(/\s*\x60{3}\s*$/, "");
+          websiteConfig = JSON.parse(cleaned);
+          if (typeof websiteConfig.storeName !== "string" || websiteConfig.storeName.length < 2 || websiteConfig.storeName.length > 80 ||
+              typeof websiteConfig.tagline !== "string" || websiteConfig.tagline.length > 160 ||
+              typeof websiteConfig.primaryColor !== "string" || !/^#[0-9a-fA-F]{6}$/.test(websiteConfig.primaryColor) ||
+              !Array.isArray(websiteConfig.products) || websiteConfig.products.length > 8 ||
+              websiteConfig.products.some(p => !p || typeof p.name !== "string" || p.name.length > 120 ||
+                typeof p.description !== "string" || p.description.length > 1000 ||
+                !Number.isSafeInteger(p.priceVnd) || p.priceVnd < 0 || p.priceVnd > 1000000000)) {
+            throw new Error("invalid_website_config");
+          }
+          websiteConfig.pages = Array.isArray(websiteConfig.pages) ? websiteConfig.pages.filter(x => typeof x === "string").slice(0, 8) : ["Trang chủ", "Sản phẩm", "Liên hệ"];
+          websiteConfig.categories = Array.isArray(websiteConfig.categories) ? websiteConfig.categories.filter(x => typeof x === "string").slice(0, 5) : [];
+          websiteConfig.designNotes = typeof websiteConfig.designNotes === "string" ? websiteConfig.designNotes.slice(0, 1000) : "";
+        }
+        const storedOutput = isWebsite ? JSON.stringify(websiteConfig) : output;
         await env.DB.batch([
           env.DB.prepare("UPDATE usage_events SET status='completed', completed_at=CURRENT_TIMESTAMP WHERE id=? AND status='reserved'").bind(eventId),
           env.DB.prepare("UPDATE quota_reservations SET status='settled', settled_at=CURRENT_TIMESTAMP WHERE id=? AND status='reserved'").bind(reservationId),
           env.DB.prepare("INSERT INTO ai_generations (id,user_id,usage_event_id,service_id,input_brief,output_text,provider,model) VALUES (?,?,?,?,?,?,?,?)")
-            .bind(crypto.randomUUID(),user.id,eventId,serviceId,brief,output,"cloudflare-workers-ai","@cf/meta/llama-3.2-1b-instruct"),
+            .bind(crypto.randomUUID(),user.id,eventId,serviceId,brief,storedOutput,"cloudflare-workers-ai","@cf/meta/llama-3.2-1b-instruct"),
         ]);
-        return json({ ok: true, generation: { text: output, service_id: serviceId, model: "@cf/meta/llama-3.2-1b-instruct" }, quota: await getQuotaSnapshot(env.DB,user.id) }, 200, env, request);
+        return json({ ok: true, generation: isWebsite
+          ? { website_config: websiteConfig, service_id: serviceId, model: "@cf/meta/llama-3.2-1b-instruct" }
+          : { text: output, service_id: serviceId, model: "@cf/meta/llama-3.2-1b-instruct" },
+          quota: await getQuotaSnapshot(env.DB,user.id) }, 200, env, request);
       } catch (error) {
         await env.DB.batch([
           env.DB.prepare("UPDATE usage_events SET status='failed', completed_at=CURRENT_TIMESTAMP WHERE id=? AND status='reserved'").bind(eventId),
