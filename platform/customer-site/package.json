@@ -1,12 +1,16 @@
 {
-  "name": "customer-store-starter",
+  "name": "customer-store-starter-and-zip-builder",
   "private": true,
   "version": "0.1.0",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "build:zip": "node tools/build-zip.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
   }
 }
