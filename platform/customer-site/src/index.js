@@ -203,6 +203,8 @@ export default {
         if (!env.DELIVERIES) return json({ error: "private_storage_not_configured" }, 503, request, env);
         const order = await env.DB.prepare("SELECT id FROM orders WHERE id=?").bind(uploadMatch[1]).first();
         if (!order) return json({ error: "order_not_found" }, 404, request, env);
+        const declaredLength = Number(request.headers.get("content-length") || 0);
+        if (declaredLength > 21 * 1024 * 1024) return json({ error: "upload_too_large" }, 413, request, env);
         const form = await request.formData();
         const file = form.get("file");
         if (!(file instanceof File) || file.size < 1 || file.size > 20 * 1024 * 1024) return json({ error: "invalid_file_size" }, 400, request, env);
