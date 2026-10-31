@@ -35,7 +35,7 @@ test("Worker source parses as an ES module", async () => {
 });
 
 test("all seven ordered D1 migration files exist", () => {
-  assert.equal(migrations.length, 9);
+  assert.equal(migrations.length, 10);
   assert.match(migrations[5], /api_rate_limits/);
   assert.match(migrations[6], /email_action_tokens/);
   assert.match(migrations[7], /estimated_cost_units_per_use/);
@@ -275,7 +275,7 @@ test("admin package upload requires a paid or processing order and private R2 st
 });
 
 test("customer ZIP download requires ownership, delivered status and private R2 object", () => {
-  assert.match(api, /\/api\/orders\/package\/\(\[0-9a-f-\]\{36\}\)/);
+  assert.match(api, /packageMatch = url\.pathname\.match/);
   assert.match(api, /WHERE id = \? AND user_id = \? LIMIT 1/);
   assert.match(api, /order\.status !== "delivered"/);
   assert.match(api, /env\.PACKAGES\.get\(order\.package_key\)/);
@@ -288,7 +288,7 @@ test("admin UI uploads ZIP as binary and customer ZIP download is authenticated"
   assert.match(admin, /content-type":"application\/zip"/);
   assert.match(admin, /body:file/);
   assert.match(admin, /api\/admin\/order-package/);
-  assert.match(customer, /\/api\/orders\/package\//);
+  assert.match(customer, /Tải website ZIP đã bàn giao/);
 });
 
 test("Worker declares a private R2 bucket binding for deliverables", () => {
