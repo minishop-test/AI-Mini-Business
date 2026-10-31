@@ -125,3 +125,25 @@ Cloudflare documents this model and its `env.AI.run()` binding here: https://dev
 
 ## Admin AI monitoring dashboard
 The admin dashboard reads `generation_enabled`, `daily_budget_units`, and `today_usage` from `GET /api/admin/overview`. It can switch the gated business-content test on/off with `POST /api/admin/ai-generation` and update the internal daily budget with `POST /api/admin/budget`. The displayed actual usage remains zero until provider-specific metering is implemented; do not treat internal estimates as invoices.
+
+
+## Lưu trữ và bàn giao ZIP riêng tư
+
+Tính năng bàn giao website dùng Cloudflare R2. Bucket phải được tạo trong đúng tài khoản Cloudflare đang chạy Worker:
+
+```bash
+npx wrangler r2 bucket create ai-mini-business-packages
+npx wrangler d1 migrations apply ai-mini-business-db --remote
+npx wrangler deploy
+```
+
+Binding `PACKAGES` đã được khai báo trong `wrangler.toml`. Không bật public access cho bucket và không tạo public URL cho object. Endpoint quản trị nhận file ZIP nhị phân tối đa 10 MB tại `POST /api/admin/order-package?order_id=...`; chỉ chấp nhận đơn ở trạng thái `paid` hoặc `processing`. Sau đó quản trị viên đánh dấu `delivered`. Khách đăng nhập đúng tài khoản và tải qua `GET /api/orders/package/:orderId`; Worker kiểm tra user_id và trạng thái `delivered` trước khi đọc object từ R2.
+
+### Quy trình hiện tại và giới hạn
+
+- Quản trị viên vẫn phải tự tạo/kiểm tra ZIP và chọn file ZIP trong trang quản trị để tải lên.
+- Backend kiểm tra phần đầu/cuối cấu trúc ZIP, kích thước và MIME type; đây là kiểm tra định dạng cơ bản, không thay thế việc quét mã độc hoặc kiểm tra nội dung archive.
+- Worker hiện giới hạn ZIP 10 MB. Chưa hỗ trợ ZIP lớn hơn hoặc tự sinh ZIP từ đơn hàng.
+- Không đánh dấu đơn đã bàn giao trước khi tải ZIP thành công.
+- Chỉ bật binding R2 sau khi bucket đã tồn tại. Chưa có bucket hoặc chưa chạy migration thì tính năng upload/download sẽ không hoạt động.
+- Không đưa token, API key hoặc thông tin đăng nhập Cloudflare vào ZIP khách hàng.
