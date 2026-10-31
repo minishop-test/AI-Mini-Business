@@ -197,7 +197,7 @@ export default {
         return json({ ok: true, product: next }, 200, request, env);
       }
 
-      const uploadMatch = url.pathname.match(/^\\/api\\/admin\\/orders\\/([0-9a-f-]{36})\\/delivery-file$/i);
+      const uploadMatch = url.pathname.match(/^\/api\/admin\/orders\/([0-9a-f-]{36})\\/delivery-file$/i);
       if (uploadMatch && request.method === "POST") {
         if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
         if (!env.DELIVERIES) return json({ error: "private_storage_not_configured" }, 503, request, env);
@@ -217,7 +217,7 @@ export default {
         return json({ ok: true, file_name: safeName, size_bytes: file.size }, 201, request, env);
       }
 
-      const linkMatch = url.pathname.match(/^\\/api\\/admin\\/orders\\/([0-9a-f-]{36})\\/delivery-link$/i);
+      const linkMatch = url.pathname.match(/^\/api\/admin\/orders\/([0-9a-f-]{36})\\/delivery-link$/i);
       if (linkMatch && request.method === "POST") {
         if (!(await isAdmin(request, env))) return json({ error: "unauthorized" }, 401, request, env);
         const order = await env.DB.prepare("SELECT payment_status,delivery_status FROM orders WHERE id=?").bind(linkMatch[1]).first();
@@ -232,7 +232,7 @@ export default {
         return json({ ok: true, file_name: file.file_name, download_url: new URL("/api/download/" + rawToken, url.origin).toString(), expires_in_hours: 24 }, 201, request, env);
       }
 
-      const downloadMatch = url.pathname.match(/^\\/api\\/download\\/([a-f0-9]{64})$/i);
+      const downloadMatch = url.pathname.match(/^\/api\/download\/([a-f0-9]{64})$/i);
       if (downloadMatch && request.method === "GET") {
         if (!env.DELIVERIES) return json({ error: "private_storage_not_configured" }, 503, request, env);
         const tokenHash = await hashSessionToken(downloadMatch[1]);
