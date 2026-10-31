@@ -211,3 +211,21 @@ test("customer ZIP builder supports API and Pages origin configuration", () => {
   assert.match(zipBuilder, /REPLACE-WITH-YOUR-WORKER/);
   assert.match(zipBuilder, /REPLACE-WITH-YOUR-PAGES/);
 });
+
+test("customer ZIP builder personalizes storefront branding and creates product seed SQL", () => {
+  assert.match(zipBuilder, /storeName/);
+  assert.match(zipBuilder, /tagline/);
+  assert.match(zipBuilder, /primaryColor/);
+  assert.match(zipBuilder, /seed-products\.sql/);
+  assert.match(zipBuilder, /priceVnd/);
+  assert.match(zipBuilder, /https:/);
+  assert.match(zipBuilder, /--config/);
+  assert.match(zipBuilder, /slice\(0, 30\)/);
+  assert.match(zipBuilder, /safeColor/);
+});
+
+test("customer website documents the required product seed step", () => {
+  assert.match(customerSiteReadme, /seed-products\.sql/);
+  assert.match(customerSiteReadme, /store\.json/);
+  assert.match(customerSiteReadme, /tối đa 30 sản phẩm/);
+});
