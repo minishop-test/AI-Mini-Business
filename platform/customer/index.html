@@ -64,6 +64,16 @@ button.secondary{background:#e9eef6;color:#1e293b}button:disabled{opacity:.5;cur
 <button id="submitOrder" type="submit">Gửi yêu cầu</button>
 </form>
 </section>
+<section class="card hidden" id="aiDraftCard">
+<h2>Thử tạo nội dung kinh doanh bằng AI</h2>
+<p class="muted">Chỉ dành cho dịch vụ nội dung kinh doanh. Tác vụ dùng lượt miễn phí và chỉ hoạt động khi quản trị viên bật chế độ thử nghiệm AI.</p>
+<form id="aiDraftForm">
+<label for="aiBrief">Bạn muốn AI tạo nội dung gì?</label>
+<textarea id="aiBrief" minlength="10" maxlength="4000" required placeholder="Ví dụ: Viết bài quảng cáo Facebook cho cửa hàng bánh handmade, giọng thân thiện, hướng tới sinh viên..."></textarea>
+<button id="generateDraft" type="submit">Tạo bản nháp AI</button>
+</form>
+<div id="aiDraftResult" class="notice hidden" style="white-space:pre-wrap"></div>
+</section>
 <section class="card hidden" id="ordersCard">
 <h2>Đơn hàng của tôi</h2><button id="reloadOrders" class="secondary">Cập nhật đơn hàng</button>
 <div id="orders" style="margin-top:10px">Chưa tải đơn hàng.</div>
@@ -105,7 +115,7 @@ async function refreshOrders(){
  if(!(data.orders||[]).length)$("orders").textContent="Bạn chưa có đơn hàng.";
 }
 async function enterAccount(user){
- currentUser=user;$("authCard").classList.add("hidden");$("accountCard").classList.remove("hidden");$("requestCard").classList.remove("hidden");$("ordersCard").classList.remove("hidden");$("welcome").textContent=user.email;
+ currentUser=user;$("authCard").classList.add("hidden");$("accountCard").classList.remove("hidden");$("requestCard").classList.remove("hidden");$("ordersCard").classList.remove("hidden");$("aiDraftCard").classList.remove("hidden");$("welcome").textContent=user.email;
  await Promise.all([refreshQuota(),refreshOrders()]);
 }
 $("resendVerify").addEventListener("click",async()=>{
@@ -145,7 +155,13 @@ $("authForm").addEventListener("submit",async e=>{
 });
 $("logout").addEventListener("click",async()=>{
  try{await api("/api/auth/logout",{method:"POST"});}catch(e){}
- currentUser=null;$("authCard").classList.remove("hidden");$("accountCard").classList.add("hidden");$("requestCard").classList.add("hidden");$("ordersCard").classList.add("hidden");notice("Bạn đã đăng xuất.");
+ currentUser=null;$("authCard").classList.remove("hidden");$("accountCard").classList.add("hidden");$("requestCard").classList.add("hidden");$("ordersCard").classList.add("hidden");$("aiDraftCard").classList.add("hidden");notice("Bạn đã đăng xuất.");
+});
+$("aiDraftForm").addEventListener("submit",async e=>{
+ e.preventDefault();$("generateDraft").disabled=true;const result=$("aiDraftResult");result.classList.remove("hidden");result.className="notice";result.textContent="Đang tạo nội dung..."; 
+ try{const data=await api("/api/generate",{method:"POST",body:JSON.stringify({service_id:"business-content",brief:$("aiBrief").value})});result.className="notice ok";result.textContent=data.generation.text;await refreshQuota();}
+ catch(err){result.className="notice error";result.textContent="Chưa tạo được nội dung: "+err.message;}
+ finally{$("generateDraft").disabled=false;}
 });
 $("orderForm").addEventListener("submit",async e=>{
  e.preventDefault();$("submitOrder").disabled=true;
