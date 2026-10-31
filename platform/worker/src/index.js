@@ -1,3 +1,4 @@
+import { zipSync, strToU8 } from "fflate";
 const SESSION_DAYS = 7;
 const PBKDF2_ITERATIONS = 100000;
 const encoder = new TextEncoder();
@@ -551,6 +552,57 @@ export default {
       if (user.role !== "admin") return json({ error: "forbidden" }, 403, env, request);
       if (request.method !== "GET" && !(await rateLimit(env.DB, request, "admin-write", user.id, 30, 60))) {
         return json({ error: "rate_limited", message: "Quá nhiều thao tác quản trị. Vui lòng thử lại sau một phút." }, 429, env, request, { "retry-after": "60" });
+      }
+
+      if (url.pathname === "/api/admin/build-website-package" && request.method === "POST") {
+        if (!env.PACKAGES) return json({ error: "package_storage_not_configured" }, 503, env, request);
+        const body = await readJson(request);
+        const orderId = typeof body?.order_id === "string" ? body.order_id : "";
+        if (!/^[0-9a-f-]{36}$/i.test(orderId)) return json({ error: "invalid_order_id" }, 400, env, request);
+        const order = await env.DB.prepare("SELECT id,user_id,service_id,status,preview_text FROM orders WHERE id=? LIMIT 1").bind(orderId).first();
+        if (!order) return json({ error: "order_not_found" }, 404, env, request);
+        if (order.service_id !== "website") return json({ error: "not_website_order" }, 400, env, request);
+        if (!["paid", "processing"].includes(order.status)) return json({ error: "payment_required", message: "Chỉ tạo ZIP sau khi đã xác nhận thanh toán." }, 409, env, request);
+        let config;
+        try { config = JSON.parse(order.preview_text || ""); } catch { return json({ error: "invalid_website_preview" }, 422, env, request); }
+        const clean = (value, max, fallback = "") => typeof value === "string" && value.trim().length <= max ? value.trim() : fallback;
+        const esc = value => String(value).replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[ch]);
+        const storeName = clean(config.storeName, 80, "Cửa hàng của tôi") || "Cửa hàng của tôi";
+        const tagline = clean(config.tagline, 160, "Sản phẩm và dịch vụ");
+        const primaryColor = /^#[0-9a-fA-F]{6}$/.test(config.primaryColor || "") ? config.primaryColor : "#2563eb";
+        const products = Array.isArray(config.products) ? config.products.slice(0, 30).map(p => ({
+          name: clean(p?.name, 120), description: clean(p?.description, 1000),
+          priceVnd: Number.isSafeInteger(p?.priceVnd) && p.priceVnd >= 0 && p.priceVnd <= 1000000000 ? p.priceVnd : null,
+          imageUrl: typeof p?.imageUrl === "string" && /^https:\/\//i.test(p.imageUrl) && p.imageUrl.length <= 2000 ? p.imageUrl : null,
+        })).filter(p => p.name && p.priceVnd !== null) : [];
+        const files = {};
+        for (const [name, content] of Object.entries(CUSTOMER_SITE_FILES)) {
+          let value = content;
+          if (name === "site/index.html") {
+            value = value.replace("<title>Cửa hàng của tôi</title>", "<title>"+esc(storeName)+"</title>");
+            value = value.replace('<h1 id="storeName">Cửa hàng của tôi</h1>', '<h1 id="storeName">'+esc(storeName)+'</h1>');
+            value = value.replace('<p class="muted" id="storeTagline" style="color:#cbd5e1">Sản phẩm và dịch vụ</p>', '<p class="muted" id="storeTagline" style="color:#cbd5e1">'+esc(tagline)+'</p>');
+            value = value.replace("background:#2563eb", "background:"+primaryColor);
+          }
+          files["customer-store/"+name] = strToU8(value);
+        }
+        const sql = value => "'" + String(value).replace(/'/g, "''") + "'";
+        const seed = products.length
+          ? "INSERT INTO products (id,name,description,price_vnd,image_url,active) VALUES\n" + products.map(p => "("+sql(crypto.randomUUID())+","+sql(p.name)+","+sql(p.description)+","+p.priceVnd+","+(p.imageUrl?sql(p.imageUrl):"NULL")+",1)").join(",\n") + ";\n"
+          : "-- Chưa có sản phẩm mẫu. Hãy thêm sản phẩm trong trang quản trị sau khi triển khai.\n";
+        files["customer-store/seed-products.sql"] = strToU8(seed);
+        files["customer-store/store-config.json"] = strToU8(JSON.stringify({storeName,tagline,primaryColor,productCount:products.length},null,2)+"\n");
+        files["customer-store/DEPLOY-NEXT.txt"] = strToU8("Đây là mã nguồn website, chưa được xuất bản.\n1. Giải nén ZIP.\n2. Làm theo README.md để tạo D1 và Worker riêng.\n3. Cập nhật API_BASE trong site/index.html và site/admin.html bằng URL Worker của bạn.\n4. Chạy seed-products.sql sau khi tạo D1.\n5. Tải thư mục site lên Cloudflare Pages.\nKhông đưa ADMIN_API_TOKEN hoặc API key vào mã nguồn.\n");
+        let zip;
+        try { zip = zipSync(files, { level: 6 }); } catch { return json({ error: "zip_build_failed" }, 500, env, request); }
+        if (zip.byteLength < 22 || zip.byteLength > 10*1024*1024) return json({ error: "package_too_large", message: "ZIP tạo ra vượt giới hạn 10 MB." }, 413, env, request);
+        const key = "orders/"+orderId+"/customer-store.zip";
+        await env.PACKAGES.put(key, zip, { httpMetadata: {contentType:"application/zip",cacheControl:"private, no-store"}, customMetadata:{orderId,userId:order.user_id} });
+        const deliveryUrl = new URL("/api/orders/package/"+orderId, env.PUBLIC_SITE_URL || env.ALLOWED_ORIGIN).toString();
+        await env.DB.prepare("UPDATE orders SET package_key=?,package_size=?,package_uploaded_at=CURRENT_TIMESTAMP,delivery_url=?,updated_at=CURRENT_TIMESTAMP WHERE id=?")
+          .bind(key,zip.byteLength,deliveryUrl,orderId).run();
+        await audit(env.DB,user.id,"website_package_generated",orderId,{bytes:zip.byteLength,products:products.length});
+        return json({ok:true,order_id:orderId,package_size:zip.byteLength,product_count:products.length,delivery_url:deliveryUrl},200,env,request);
       }
 
       if (url.pathname === "/api/admin/order-package" && request.method === "POST") {
