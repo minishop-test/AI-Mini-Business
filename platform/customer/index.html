@@ -19,7 +19,7 @@ button.secondary{background:#e9eef6;color:#1e293b}button:disabled{opacity:.5;cur
 .quota div{background:#f7f9fc;padding:12px;border-radius:10px}.quota strong{display:block;font-size:20px}
 .order{padding:14px 0;border-bottom:1px solid #e9edf3}.order:last-child{border:0}.status{display:inline-block;border-radius:20px;padding:3px 9px;background:#eef2f7;font-size:12px}
 @media(max-width:560px){main{margin:16px auto}.card{padding:16px}.row{display:grid}}
-.website-preview{border:1px solid #dbe2ea;border-radius:14px;overflow:hidden;background:#f8fafc;color:#172033;margin:12px 0 20px}.website-preview .pv-head{padding:26px 20px;color:white}.website-preview .pv-head h2{margin:0 0 5px;font-size:25px}.website-preview .pv-nav{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;background:white;border-bottom:1px solid #e2e8f0}.website-preview .pv-chip{border:1px solid #e2e8f0;border-radius:20px;padding:4px 10px;font-size:12px}.website-preview .pv-content{padding:16px}.website-preview .pv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.website-preview .pv-product{background:white;border:1px solid #e2e8f0;border-radius:10px;padding:10px;min-width:0}.website-preview .pv-product img{width:100%;height:110px;object-fit:cover;border-radius:7px}.website-preview .pv-product h4{margin:8px 0 4px;font-size:15px}.website-preview .pv-product p{font-size:12px;color:#64748b;margin:4px 0}.website-preview .pv-price{font-weight:750;color:#172033;font-size:15px}.website-preview .pv-empty{color:#64748b;font-size:13px}@media(max-width:480px){.website-preview .pv-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.website-preview .pv-head{padding:20px 14px}}.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.editor-grid label{display:block;font-weight:600;font-size:13px}.editor-grid input{width:100%;margin-top:4px}.editor-product{border:1px solid #dbe2ea;border-radius:10px;padding:10px;margin:8px 0;background:#fff}.editor-product .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:520px){.editor-grid{grid-template-columns:1fr}.editor-product .row{grid-template-columns:1fr}}</style>
+.website-preview{border:1px solid #dbe2ea;border-radius:14px;overflow:hidden;background:#f8fafc;color:#172033;margin:12px 0 20px}.website-preview .pv-head{padding:26px 20px;color:white;background-size:cover;background-position:center}.website-preview .pv-head h2{margin:0 0 5px;font-size:25px}.website-preview .pv-nav{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;background:white;border-bottom:1px solid #e2e8f0}.website-preview .pv-chip{border:1px solid #e2e8f0;border-radius:20px;padding:4px 10px;font-size:12px}.website-preview .pv-content{padding:16px}.website-preview .pv-grid{display:grid;grid-template-columns:repeat(var(--pv-cols,3),minmax(0,1fr));gap:12px}.website-preview .pv-product{background:white;border:1px solid #e2e8f0;border-radius:10px;padding:10px;min-width:0}.website-preview .pv-product img{width:100%;height:110px;object-fit:cover;border-radius:7px}.website-preview .pv-product h4{margin:8px 0 4px;font-size:15px}.website-preview .pv-product p{font-size:12px;color:#64748b;margin:4px 0}.website-preview .pv-price{font-weight:750;color:#172033;font-size:15px}.website-preview .pv-empty{color:#64748b;font-size:13px}.website-preview.pv-editorial .pv-head{text-align:center;padding:44px 20px}.website-preview.pv-bold .pv-product{border-radius:2px;border-width:2px}.website-preview.pv-minimal .pv-product{box-shadow:0 3px 12px #0f172a0b;border-radius:16px}.website-preview.pv-mobile{max-width:390px;margin:0 auto}.website-preview.pv-desktop{max-width:100%;margin:0 auto}@media(max-width:480px){.website-preview .pv-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.website-preview .pv-head{padding:20px 14px}}.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.editor-grid label{display:block;font-weight:600;font-size:13px}.editor-grid input{width:100%;margin-top:4px}.editor-product{border:1px solid #dbe2ea;border-radius:10px;padding:10px;margin:8px 0;background:#fff}.editor-product .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:520px){.editor-grid{grid-template-columns:1fr}.editor-product .row{grid-template-columns:1fr}}</style>
 </head>
 <body>
 <header><h1>AI Mini Business</h1><div class="muted" style="color:#cbd5e1">Khu vực khách hàng · <a href="../../">Về trang chủ</a></div></header>
@@ -92,8 +92,13 @@ button.secondary{background:#e9eef6;color:#1e293b}button:disabled{opacity:.5;cur
  <label>Tên cửa hàng<input id="editStoreName" maxlength="80"></label>
  <label>Câu giới thiệu<input id="editTagline" maxlength="160"></label>
  <label>Màu chủ đạo<input id="editColor" type="color" value="#2563eb"></label>
+ <label>Mẫu giao diện<select id="editTemplate"><option value="minimal">Tối giản</option><option value="bold">Nổi bật</option><option value="editorial">Sang trọng</option></select></label>
+ <label>Số cột sản phẩm<select id="editColumns"><option value="2">2 cột</option><option value="3">3 cột</option><option value="4">4 cột</option></select></label>
+ <label>Ảnh banner HTTPS<input id="editHeroImage" type="url" maxlength="2000" placeholder="https://..."></label>
+ <label>Tiêu đề banner<input id="editHeroTitle" maxlength="100" placeholder="Bộ sưu tập mới"></label>
  <label>Trang điều hướng<input id="editPages" maxlength="320" placeholder="Trang chủ, Sản phẩm, Liên hệ"></label>
  </div>
+ <div class="editor-grid"><label>Xem thử trên thiết bị<select id="editViewport"><option value="desktop">Máy tính</option><option value="mobile">Điện thoại</option></select></label></div>
  <h4>Sản phẩm</h4><div id="editProducts"></div>
  <button id="addEditorProduct" type="button" class="secondary">Thêm sản phẩm</button>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="saveVisualEdits" type="button">Lưu thay đổi</button><button id="resetVisualEdits" type="button" class="secondary">Hoàn tác</button></div>
@@ -130,7 +135,7 @@ function drawEditorProduct(product={}){
 }
 function readEditorConfig(){
  return {storeName:$("editStoreName").value.trim(),tagline:$("editTagline").value.trim(),primaryColor:$("editColor").value,
- pages:$("editPages").value.split(",").map(x=>x.trim()).filter(Boolean),
+ template:$("editTemplate").value,productColumns:Number($("editColumns").value),heroImageUrl:$("editHeroImage").value.trim()||null,heroTitle:$("editHeroTitle").value.trim(),pages:$("editPages").value.split(",").map(x=>x.trim()).filter(Boolean),
  products:[...$("editProducts").querySelectorAll(".editor-product")].map(card=>({
  name:card.querySelector('[data-field="name"]').value.trim(),
  description:card.querySelector('[data-field="description"]').value.trim(),
@@ -142,7 +147,7 @@ function loadVisualEditor(orderId,cfg){
  visualEditorOrderId=orderId;visualEditorConfig=JSON.parse(JSON.stringify(cfg));
  $("editStoreName").value=cfg.storeName||"";$("editTagline").value=cfg.tagline||"";
  $("editColor").value=/^#[0-9a-fA-F]{6}$/.test(cfg.primaryColor||"")?cfg.primaryColor:"#2563eb";
- $("editPages").value=(cfg.pages||[]).join(", ");$("editProducts").replaceChildren();
+ $("editTemplate").value=["minimal","bold","editorial"].includes(cfg.template)?cfg.template:"minimal";$("editColumns").value=String([2,3,4].includes(cfg.productColumns)?cfg.productColumns:3);$("editHeroImage").value=cfg.heroImageUrl||"";$("editHeroTitle").value=cfg.heroTitle||"";$("editPages").value=(cfg.pages||[]).join(", ");$("editProducts").replaceChildren();
  (cfg.products||[]).forEach(drawEditorProduct);$("editorMessage").textContent="";
  $("visualEditorCard").classList.remove("hidden");renderStorePreview($("websiteLivePreview"),cfg);
 }
@@ -165,10 +170,10 @@ function statusName(status){return ({pending_review:"Chờ quản trị viên xe
 function renderStorePreview(container,cfg){
  container.replaceChildren();
  const safeColor=/^#[0-9a-fA-F]{6}$/.test(cfg?.primaryColor||"")?cfg.primaryColor:"#2563eb";
- const shell=document.createElement("div");shell.className="website-preview";
+ const shell=document.createElement("div");shell.className="website-preview pv-"+(["minimal","bold","editorial"].includes(cfg?.template)?cfg.template:"minimal")+" pv-"+($("editViewport")?.value==="mobile"?"mobile":"desktop");shell.style.setProperty("--pv-cols",String([2,3,4].includes(Number(cfg?.productColumns))?cfg.productColumns:3));
  const head=document.createElement("header");head.className="pv-head";head.style.background=safeColor;
  const name=document.createElement("h2");name.textContent=String(cfg?.storeName||"Cửa hàng của tôi").slice(0,80);
- const tagline=document.createElement("div");tagline.textContent=String(cfg?.tagline||"Sản phẩm và dịch vụ").slice(0,160);tagline.style.opacity=".9";head.append(name,tagline);
+ const tagline=document.createElement("div");tagline.textContent=String(cfg?.tagline||"Sản phẩm và dịch vụ").slice(0,160);tagline.style.opacity=".9";head.append(name,tagline);\n if(typeof cfg?.heroImageUrl==="string"&&/^https:\/\//i.test(cfg.heroImageUrl)&&cfg.heroImageUrl.length<=2000){head.style.backgroundImage="linear-gradient(#0006,#0006),url("+JSON.stringify(cfg.heroImageUrl)+")";}\n const heroTitle=document.createElement("p");heroTitle.textContent=String(cfg?.heroTitle||"").slice(0,100);heroTitle.style.fontSize="20px";heroTitle.style.fontWeight="700";if(cfg?.heroTitle)head.append(heroTitle);
  const nav=document.createElement("nav");nav.className="pv-nav";
  (Array.isArray(cfg?.pages)?cfg.pages.slice(0,8):["Trang chủ","Sản phẩm","Liên hệ"]).forEach(label=>{const chip=document.createElement("span");chip.className="pv-chip";chip.textContent=String(label).slice(0,40);nav.append(chip);});
  const content=document.createElement("section");content.className="pv-content";
@@ -188,7 +193,7 @@ function renderStorePreview(container,cfg){
 }
 
 $("addEditorProduct").addEventListener("click",()=>{if($("editProducts").children.length>=30){$("editorMessage").textContent="Tối đa 30 sản phẩm.";return;}drawEditorProduct({name:"",description:"",priceVnd:0});updatePreviewFromEditor();});
-["editStoreName","editTagline","editColor","editPages","editProducts"].forEach(id=>$(id).addEventListener("input",updatePreviewFromEditor));
+["editStoreName","editTagline","editColor","editPages","editProducts","editTemplate","editColumns","editHeroImage","editHeroTitle","editViewport"].forEach(id=>$(id).addEventListener("input",updatePreviewFromEditor));
 $("resetVisualEdits").addEventListener("click",()=>{if(visualEditorOrderId&&visualEditorConfig)loadVisualEditor(visualEditorOrderId,visualEditorConfig);});
 $("saveVisualEdits").addEventListener("click",async()=>{
  const button=$("saveVisualEdits"),message=$("editorMessage");button.disabled=true;message.className="notice";message.textContent="Đang lưu...";
