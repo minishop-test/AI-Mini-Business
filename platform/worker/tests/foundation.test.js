@@ -37,7 +37,7 @@ test("Worker source parses as an ES module", async () => {
 });
 
 test("all seven ordered D1 migration files exist", () => {
-  assert.equal(migrations.length, 10);
+  assert.equal(migrations.length, 11);
   assert.match(migrations[5], /api_rate_limits/);
   assert.match(migrations[6], /email_action_tokens/);
   assert.match(migrations[7], /estimated_cost_units_per_use/);
@@ -286,7 +286,7 @@ test("bundled website template contains isolated customer frontend, API and depl
 });
 
 test("website revisions are limited to the customer's own pending-review order", () => {
-  assert.match(api, /order_id = \\? AND user_id = \\? AND service_id = 'website'/);
+  assert.match(api, /WHERE id = \\? AND user_id = \\? AND service_id = 'website'/);
   assert.match(api, /revisionOrder.status !== "pending_review"/);
   assert.match(api, /UPDATE orders SET preview_text = \\?[^\\n]*status = 'pending_review'/);
   assert.match(api, /INSERT INTO order_revisions/);
