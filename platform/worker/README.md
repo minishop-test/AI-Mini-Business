@@ -147,3 +147,17 @@ Binding `PACKAGES` đã được khai báo trong `wrangler.toml`. Không bật p
 - Không đánh dấu đơn đã bàn giao trước khi tải ZIP thành công.
 - Chỉ bật binding R2 sau khi bucket đã tồn tại. Chưa có bucket hoặc chưa chạy migration thì tính năng upload/download sẽ không hoạt động.
 - Không đưa token, API key hoặc thông tin đăng nhập Cloudflare vào ZIP khách hàng.
+
+
+## Tạo ZIP website tự động từ đơn hàng
+
+Trang quản trị có thao tác **Tự động tạo ZIP từ bản thiết kế AI**. Worker đọc `preview_text` của đơn website, kiểm tra trạng thái `paid` hoặc `processing`, ghép các tệp starter độc lập được bundle trong `src/customer-site-template.js`, cá nhân hóa tên cửa hàng/mô tả/màu và tạo `seed-products.sql`. ZIP được tạo trong Worker bằng `fflate`, sau đó ghi vào R2 binding `PACKAGES` và cập nhật metadata đơn hàng. Không cần tải ZIP từ máy quản trị viên lên thủ công.
+
+Điều kiện:
+- Cài dependencies của Worker sau khi cập nhật package lock/dependencies, rồi deploy Worker.
+- R2 bucket `ai-mini-business-packages` phải được tạo và binding `PACKAGES` hoạt động.
+- Chạy migration `0010_order_packages.sql` trên D1.
+- Đơn hàng phải là dịch vụ website và đã ở trạng thái `paid` hoặc `processing`.
+- ZIP tối đa 10 MB; sản phẩm mẫu lấy từ cấu hình AI, tối đa 30 mục hợp lệ.
+
+ZIP là source starter để khách tự triển khai. Khách vẫn phải tạo D1/Worker/Pages riêng, cập nhật URL Worker trong hai trang HTML, đặt secret quản trị và làm theo README bên trong ZIP. Chức năng này không tự tạo tài nguyên trong tài khoản Cloudflare của khách, không tự publish website và không tự xác minh mã độc trong archive. Quản trị viên cần mở/kiểm tra ZIP trước khi chuyển đơn sang `delivered`.
