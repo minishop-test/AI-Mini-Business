@@ -2,7 +2,7 @@
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Quản trị cửa hàng</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#182235;font:15px/1.5 system-ui,sans-serif}header{background:#172033;color:#fff;padding:24px max(18px,calc((100% - 1100px)/2))}main{max-width:1100px;margin:24px auto;padding:0 16px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.card{background:#fff;border:1px solid #e2e8f0;border-radius:13px;padding:18px;margin-bottom:16px}input,textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin:5px 0 12px;font:inherit}label{font-weight:600}button{border:0;border-radius:8px;padding:10px 14px;background:#2563eb;color:white;font:inherit;cursor:pointer;margin:3px}button.secondary{background:#e8eef8;color:#172033}button.danger{background:#b42318}button:disabled{opacity:.5}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px;border-bottom:1px solid #e2e8f0;vertical-align:top}small,.muted{color:#64748b}.scroll{overflow:auto}.notice{padding:10px;border-radius:8px;background:#eff6ff;margin:10px 0}.error{background:#feeceb;color:#8a1c13}.hidden{display:none}
-</style></head><body>
+.order-detail{padding:12px;background:#f5f6f8;border-radius:10px;overflow-wrap:anywhere}.order-detail p{margin:6px 0}.scroll{overflow-x:auto}table{min-width:720px}button{min-height:40px}@media(max-width:640px){main{padding:12px}.card{padding:12px}.grid{grid-template-columns:1fr}input,select,button{max-width:100%}.scroll{margin:0 -4px}}</style></head><body>
 <header><h1>Quản trị cửa hàng</h1><p>Quản lý sản phẩm và đơn hàng của website này.</p></header>
 <main>
 <section class="card" id="login">
@@ -53,7 +53,16 @@ async function loadAll(){
   const values=[o.created_at,o.customer_name+" · "+o.customer_email,o.product_name_snapshot+" × "+o.quantity,money(o.total_vnd)];
   values.forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.append(td);});
   const statusTd=document.createElement("td"),select=document.createElement("select");["new","confirmed","completed","cancelled"].forEach(s=>{const op=document.createElement("option");op.value=s;op.textContent=({new:"Mới",confirmed:"Đã xác nhận",completed:"Hoàn tất",cancelled:"Đã hủy"})[s];select.append(op);});select.value=o.status;statusTd.append(select);tr.append(statusTd);
-  const actionTd=document.createElement("td"),save=document.createElement("button");save.textContent="Lưu";save.addEventListener("click",async()=>{save.disabled=true;try{await api("/api/admin/orders/"+o.id,{method:"PATCH",body:JSON.stringify({status:select.value})});notify("Đã cập nhật đơn hàng.");}catch(e){notify(e.message,true);}finally{save.disabled=false;}});actionTd.append(save);tr.append(actionTd);$("orders").append(tr);
+  const actionTd=document.createElement("td"),details=document.createElement("button");details.className="secondary";details.textContent="Chi tiết";details.addEventListener("click",()=>{
+   const existing=tr.nextElementSibling;if(existing&&existing.dataset.detailFor===o.id){existing.remove();details.textContent="Chi tiết";return;}
+   const row=document.createElement("tr");row.dataset.detailFor=o.id;const cell=document.createElement("td");cell.colSpan=6;
+   const panel=document.createElement("div");panel.className="order-detail";
+   const fields=[["Mã đơn",o.id],["Điện thoại",o.customer_phone||"Chưa cung cấp"],["Đơn giá",money(o.unit_price_vnd)],["Số lượng",String(o.quantity)],["Ghi chú",o.note||"Không có"]];
+   fields.forEach(([label,value])=>{const p=document.createElement("p"),strong=document.createElement("strong");strong.textContent=label+": ";p.append(strong,document.createTextNode(value));panel.append(p);});
+   cell.append(panel);row.append(cell);tr.after(row);details.textContent="Ẩn chi tiết";
+  });
+  const save=document.createElement("button");save.textContent="Lưu trạng thái";save.addEventListener("click",async()=>{save.disabled=true;try{await api("/api/admin/orders/"+o.id,{method:"PATCH",body:JSON.stringify({status:select.value})});await loadAll();notify("Đã cập nhật đơn hàng.");}catch(e){notify(e.message,true);}finally{save.disabled=false;}});
+  actionTd.append(details,save);tr.append(actionTd);$("orders").append(tr);
  });
  if(!(orders.orders||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=6;td.textContent="Chưa có đơn hàng.";tr.append(td);$("orders").append(tr);}
  $("auditLog").replaceChildren();(audit.entries||[]).forEach(entry=>{
