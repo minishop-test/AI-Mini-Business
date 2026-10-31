@@ -354,7 +354,7 @@ test("customer storefront records admin mutations and exposes a protected read-o
   assert.match(customerSiteApi, /async function writeAudit/);
   assert.match(customerSiteApi, /INSERT INTO admin_audit_log/);
   assert.ok(customerSiteApi.includes('"product.updated"'));
-  assert.match(customerSiteApi, /product\\.updated/);
+  assert.ok(customerSiteApi.includes('"product.updated"'));
   assert.match(customerSiteApi, /order\\.status_changed/);
   assert.match(customerSiteApi, /await isAdmin\(request, env\)/);
   assert.match(customerSiteSchema, /CREATE TABLE IF NOT EXISTS admin_audit_log/);
