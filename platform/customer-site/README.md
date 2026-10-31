@@ -23,13 +23,15 @@ Khách hàng cần có tài khoản Cloudflare, Node.js và npm. Website này c�
 8. Mở `site/index.html`, thay `API_BASE` bằng URL Worker đã triển khai và tải thư mục `site` lên Cloudflare Pages.
 
 ## Quản trị
-API quản trị yêu cầu header `Authorization: Bearer <ADMIN_API_TOKEN>`. Chỉ gọi API này từ môi trường quản trị riêng, không nhúng token vào HTML công khai, JavaScript frontend hoặc kho Git. Bộ mẫu chưa cung cấp trang admin đăng nhập hoàn chỉnh; chủ website có thể dùng công cụ API bảo mật để quản lý trong giai đoạn đầu.
+Mở `admin.html` sau khi triển khai trang Pages. Nhập `ADMIN_API_TOKEN` đã đặt bằng Wrangler secret. Trang quản trị chỉ giữ token trong bộ nhớ của tab hiện tại, không ghi token vào file hoặc localStorage; đăng xuất hoặc tải lại trang sẽ xóa token. Token vẫn được gửi từ trình duyệt tới Worker để gọi API, vì vậy chỉ dùng trang quản trị trên thiết bị đáng tin cậy, bật HTTPS, không chia sẻ token và đổi secret ngay nếu nghi ngờ bị lộ. Với cửa hàng có yêu cầu bảo mật cao, nên thay mô hình token quản trị đơn giản này bằng hệ thống đăng nhập riêng có phiên ngắn hạn, MFA và audit log.
 
 Các endpoint:
 - `GET /api/products`: danh sách sản phẩm đang hiển thị.
 - `POST /api/orders`: tạo đơn hàng.
 - `GET /api/admin/orders`: xem đơn hàng (admin).
+- `GET /api/admin/products`: xem tất cả sản phẩm kể cả sản phẩm đang ẩn (admin).
 - `POST /api/admin/products`: tạo sản phẩm (admin).
+- `PATCH /api/admin/products/:id`: bật/tắt hiển thị sản phẩm (admin).
 - `PATCH /api/admin/orders/:id`: cập nhật trạng thái đơn (admin).
 
 ## Giới hạn và an toàn
