@@ -93,3 +93,6 @@ The Worker sends verification and password-reset messages through Resend.
 4. Apply migration `0007_email_verification_password_reset.sql`.
 5. Register a test account, confirm the message arrives, verify the email link, then test forgot/reset password. Ensure the reset token is single-use and old sessions are invalidated.
 Do not put the Resend API key in `wrangler.toml`, HTML, or Git.
+
+## Additional admin safety checks
+Admin write routes are limited to 30 requests per administrator per 60 seconds. Quota reservation settlement uses conditional updates in a D1 batch and returns a conflict if another request already settled the reservation. These controls reduce accidental duplicate admin actions; run the automated tests and concurrency tests against a disposable D1 database before production use.
