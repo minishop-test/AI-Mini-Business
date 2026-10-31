@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS orders (
   quantity INTEGER NOT NULL CHECK(quantity BETWEEN 1 AND 20),
   total_vnd INTEGER NOT NULL CHECK(total_vnd >= 0),
   note TEXT NOT NULL DEFAULT '' CHECK(length(note) <= 1000),
-  status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','confirmed','completed','cancelled')),
+  status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','confirmed','completed','cancelled')),\n  payment_status TEXT NOT NULL DEFAULT 'pending' CHECK(payment_status IN ('pending','paid','refunded')),\n  delivery_status TEXT NOT NULL DEFAULT 'pending' CHECK(delivery_status IN ('pending','delivered')),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
