@@ -13,7 +13,7 @@ const customerAdmin = await readFile(new URL("../../customer-site/site/admin.htm
 const zipBuilder = await readFile(new URL("../../customer-site/tools/build-zip.mjs", import.meta.url), "utf8");
 const customerPackage = JSON.parse(await readFile(new URL("../../customer-site/package.json", import.meta.url), "utf8"));
 const migrations = await Promise.all(
-  Array.from({ length: 9 }, (_, i) =>
+  Array.from({ length: 10 }, (_, i) =>
     readFile(new URL(`../migrations/${String(i + 1).padStart(4, "0")}_${[
       "initial",
       "auth_sessions",
@@ -24,6 +24,7 @@ const migrations = await Promise.all(
       "email_verification_password_reset",
       "service_cost_budgets",
       "ai_generation_control",
+      "order_packages",
     ][i]}.sql`, import.meta.url), "utf8")
   )
 );
@@ -256,6 +257,42 @@ test("customer ZIP builder personalizes storefront branding and creates product 
   assert.match(zipBuilder, /--config/);
   assert.match(zipBuilder, /slice\(0, 30\)/);
   assert.match(zipBuilder, /safeColor/);
+});
+
+test("order package migration stores only private package metadata", () => {
+  assert.match(migrations[9], /package_key TEXT/);
+  assert.match(migrations[9], /package_size INTEGER/);
+  assert.match(migrations[9], /package_uploaded_at TEXT/);
+});
+
+test("admin package upload requires a paid or processing order and private R2 storage", () => {
+  assert.match(api, /url\.pathname === "\/api\/admin\/order-package"/);
+  assert.match(api, /if \(!\["paid", "processing"\]\.includes\(order\.status\)\)/);
+  assert.match(api, /env\.PACKAGES\.put\(key, bytes/);
+  assert.match(api, /application\/zip/);
+  assert.match(api, /10 \* 1024 \* 1024/);
+  assert.match(api, /0x04034b50/);
+});
+
+test("customer ZIP download requires ownership, delivered status and private R2 object", () => {
+  assert.match(api, /\/api\/orders\/package\/\(\[0-9a-f-\]\{36\}\)/);
+  assert.match(api, /WHERE id = \? AND user_id = \? LIMIT 1/);
+  assert.match(api, /order\.status !== "delivered"/);
+  assert.match(api, /env\.PACKAGES\.get\(order\.package_key\)/);
+  assert.match(customer, /Tải website ZIP đã bàn giao/);
+});
+
+test("admin UI uploads ZIP as binary and customer ZIP download is authenticated", () => {
+  assert.match(admin, /id="packageFile"/);
+  assert.match(admin, /uploadOrderPackage/);
+  assert.match(admin, /content-type":"application\/zip"/);
+  assert.match(admin, /body:file/);
+  assert.match(admin, /api\/admin\/order-package/);
+  assert.match(customer, /\/api\/orders\/package\//);
+});
+
+test("Worker declares a private R2 bucket binding for deliverables", () => {
+  const wrangler = readFile(new URL("../wrangler.toml", import.meta.url), "utf8");
 });
 
 test("customer website documents the required product seed step", () => {
