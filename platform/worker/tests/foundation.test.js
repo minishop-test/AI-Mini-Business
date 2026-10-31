@@ -56,7 +56,7 @@ test("sensitive write routes enforce the configured origin", () => {
 
 test("AI generation stays disabled until explicitly implemented", () => {
   assert.match(api, /error: "generation_disabled"/);
-  assert.match(api, /AI generation is not enabled yet/);
+  assert.match(api, /controlMap\.ai_generation_enabled !== "true"/);
 });
 
 test("customer UI handles verification and password reset links", () => {
