@@ -341,6 +341,7 @@ test("customer storefront admin uses expiring hashed sessions and deployment sch
   assert.match(customerSiteApi, /datetime\('now','\+30 minutes'\)/);
   assert.match(customerSiteApi, /api\/admin\/logout/);
   assert.match(customerSiteApi, /DELETE FROM admin_sessions/);
+  assert.match(customerSiteApi, /replace\\(\\/\\^Bearer\\\\s\\+\\/i, ""\\)/);
   assert.match(customerSiteApi, /await isAdmin\(request, env\)/);
   assert.match(customerAdmin, /api\/admin\/login/);
   assert.match(customerAdmin, /expires_in/);
