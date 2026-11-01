@@ -38,7 +38,7 @@ const files = [
   "README.md", "package.json", "wrangler.toml", "schema.sql",
   "src/index.js", "site/index.html", "site/admin.html",
   "migrations/0002_admin_sessions.sql", "migrations/0003_admin_audit_log.sql",
-  "migrations/0004_payment_delivery.sql", "migrations/0005_private_deliveries.sql"
+  "migrations/0004_payment_delivery.sql", "migrations/0005_private_deliveries.sql", "migrations/0006_admin_login_attempts.sql"
 ];
 const archive = {};
 for (const relative of files) {
