@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#101a33">
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
   <title>AI Mini Business | Công cụ AI cho công việc và kinh doanh</title>
   <meta name="description" content="Khám phá tài liệu số, bộ prompt AI và công cụ thực hành giúp bạn học tập, sáng tạo nội dung và kinh doanh hiệu quả hơn.">
   <meta property="og:title" content="AI Mini Business">
@@ -137,6 +138,10 @@
     .btn-blue { color: #fff; background: var(--blue); box-shadow: 0 8px 18px rgba(56,103,244,.2); }
     .btn-blue:hover { background: var(--blue-dark); }
     .btn-disabled { color: #8792a7; background: #eef1f6; cursor: default; }
+    .about-panel { display:grid; grid-template-columns:.8fr 1.2fr; gap:28px; align-items:center; padding:30px; border:1px solid var(--line); border-radius:22px; background:#fff; }
+    .about-mark { display:grid; place-items:center; min-height:220px; border-radius:18px; background:linear-gradient(135deg,#101a33,#315ed7); }
+    .about-mark img { width:105px; height:105px; }
+    .about-copy p { margin-top:10px; color:var(--muted); font-size:14px; }
     .benefits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
     .benefit { padding: 22px; border: 1px solid var(--line); border-radius: 17px; background: #fff; }
     .benefit-icon { font-size: 23px; }
@@ -161,6 +166,8 @@
     .footer-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
     .footer-brand { color: #fff; font-weight: 800; }
     @media (max-width: 800px) {
+      .about-panel { grid-template-columns:1fr; }
+      .about-mark { min-height:150px; }
       .hero-grid { grid-template-columns: 1fr; gap: 38px; }
       .hero-panel { max-width: 520px; transform: none; }
       .product-grid, .benefits, .steps { grid-template-columns: repeat(2, 1fr); }
@@ -192,13 +199,14 @@
   <header class="topbar">
     <div class="wrap navrow">
       <a class="brand" href="#home" aria-label="AI Mini Business - Trang chủ">
-        <span class="brand-mark">✦</span>
+        <img src="assets/logo.svg" alt="" width="39" height="39" style="border-radius:13px">
         <span>AI Mini Business<small>Digital tools · Smarter work</small></span>
       </a>
       <nav aria-label="Điều hướng chính">
         <a href="#home">Trang chủ</a>
         <a href="#products">Sản phẩm</a>
         <a href="#benefits">Lợi ích</a>
+        <a href="#about">Giới thiệu</a>
         <a href="#how">Cách mua</a>
         <a href="#faq">FAQ</a>
         <a class="nav-cta" href="#contact">Liên hệ</a>
@@ -308,6 +316,24 @@
         <div class="cta-band">
           <div><div class="kicker" style="color:#b9ccff">Sẵn sàng bắt đầu?</div><h2>Chọn một công cụ phù hợp với bạn.</h2><p>Khám phá bộ 50 Prompt AI dành cho người mới kinh doanh.</p></div>
           <a class="btn btn-primary" href="product-50-prompts.html">Xem sản phẩm <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="about">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Về chúng tôi</div>
+          <h2>AI Mini Business là gì?</h2>
+          <p>Một cửa hàng tài liệu số tập trung vào những hướng dẫn và công cụ AI dễ tiếp cận cho người mới bắt đầu.</p>
+        </div>
+        <div class="about-panel">
+          <div class="about-mark"><img src="assets/logo.svg" alt="Logo AI Mini Business"></div>
+          <div class="about-copy">
+            <h3 style="color:var(--navy);font-size:21px">Công cụ nhỏ. Ý tưởng lớn.</h3>
+            <p>AI Mini Business hướng đến việc giúp người dùng bắt đầu sử dụng AI một cách có mục tiêu: từ tìm ý tưởng, tạo nội dung đến sắp xếp công việc.</p>
+            <p>Chúng tôi ưu tiên tài liệu rõ ràng, có thể tùy chỉnh và thực hành theo nhu cầu. AI là công cụ hỗ trợ; người dùng cần kiểm tra thông tin và tự quyết định trước khi áp dụng.</p>
+          </div>
         </div>
       </div>
     </section>
