@@ -131,7 +131,7 @@ export default {
       }
 
       if (url.pathname === "/api/admin/logout" && request.method === "POST") {
-        const token = (request.headers.get("Authorization") || "").replace(/^Bearer\\s+/i, "");
+        const token = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
         if (/^[a-f0-9]{64}$/i.test(token)) {
           await env.DB.prepare("DELETE FROM admin_sessions WHERE token_hash=?").bind(await hashSessionToken(token)).run();
         }
