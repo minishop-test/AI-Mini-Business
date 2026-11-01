@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#101a33">
   <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
   <title>AI Mini Business | Công cụ AI cho công việc và kinh doanh</title>
   <meta name="description" content="Khám phá tài liệu số, bộ prompt AI và công cụ thực hành giúp bạn học tập, sáng tạo nội dung và kinh doanh hiệu quả hơn.">
   <meta property="og:title" content="AI Mini Business">
@@ -112,7 +113,7 @@
     .product-featured { border-color: #cbd8ff; background: linear-gradient(160deg, #fff, #f4f7ff); }
     .product-icon { display: grid; place-items: center; width: 53px; height: 53px; border-radius: 16px; background: #edf2ff; font-size: 25px; }
     .product-cover {
-      position: relative; display: flex; align-items: flex-end; min-height: 158px; overflow: hidden;
+      position: relative; display: block; width:100%; min-height: 0; height: 180px; overflow: hidden;
       padding: 18px; border-radius: 16px; color: #fff;
       background: radial-gradient(circle at 82% 18%, rgba(125,166,255,.7), transparent 30%),
                   linear-gradient(140deg, #101a33, #244db5 75%, #3975ee);
@@ -182,6 +183,9 @@
     @media (max-width: 600px) {
       .wrap { width: min(100% - 30px, 1120px); }
       .navrow { min-height: 66px; align-items: flex-start; flex-direction: column; gap: 10px; padding: 13px 0; }
+      nav { scrollbar-width: none; }
+      nav::-webkit-scrollbar { display:none; }
+      .product-cover { height: auto; aspect-ratio: 4 / 3; }
       nav { width: 100%; gap: 17px; overflow-x: auto; padding-bottom: 2px; }
       nav a { white-space: nowrap; font-size: 12px; }
       .nav-cta { padding: 0; color: #91b0ff; background: transparent; }
@@ -253,13 +257,7 @@
         </div>
         <div class="product-grid">
           <article class="product product-featured">
-            <div class="product-cover" aria-label="Ảnh bìa minh họa bộ 50 Prompt AI">
-              <div class="cover-content">
-                <div class="cover-kicker">AI MINI BUSINESS · DIGITAL GUIDE</div>
-                <div class="cover-title">50 PROMPT<br>AI</div>
-                <div class="cover-subtitle">Dành cho người mới kinh doanh</div>
-              </div>
-            </div>
+            <div class="product-cover"><img src="assets/50-prompt-ai-cover.svg" alt="Bìa bộ 50 Prompt AI dành cho người mới kinh doanh" loading="lazy" style="display:block;width:100%;height:100%;object-fit:cover"></div>
             <span class="tag">Sản phẩm hiện có</span>
             <h3>50 Prompt AI cho người mới kinh doanh</h3>
             <p>Bộ câu lệnh hỗ trợ lên ý tưởng, lập kế hoạch, viết nội dung và tổ chức công việc kinh doanh.</p>
