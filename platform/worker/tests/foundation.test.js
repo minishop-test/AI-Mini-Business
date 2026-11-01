@@ -233,7 +233,7 @@ test("customer admin dashboard uses session-only token and safe DOM text renderi
 });
 
 test("customer ZIP builder packages all deployable source files without platform secrets", () => {
-  for (const file of ["README.md", "package.json", "wrangler.toml", "schema.sql", "src/index.js", "site/index.html", "site/admin.html", "migrations/0002_admin_sessions.sql", "migrations/0003_admin_audit_log.sql", "migrations/0004_payment_delivery.sql", "migrations/0005_private_deliveries.sql"]) {
+  for (const file of ["README.md", "package.json", "wrangler.toml", "schema.sql", "src/index.js", "site/index.html", "site/admin.html", "migrations/0002_admin_sessions.sql", "migrations/0003_admin_audit_log.sql", "migrations/0004_payment_delivery.sql", "migrations/0005_private_deliveries.sql", "migrations/0006_admin_login_attempts.sql"]) {
     assert.ok(zipBuilder.includes('"'+file+'"'), "ZIP must include "+file);
   }
   assert.match(zipBuilder, /zipSync/);
@@ -246,6 +246,11 @@ test("ZIP builder migration list is valid JavaScript source with no escaped newl
   assert.doesNotMatch(zipBuilder, /,\\\\n\\s*"migrations/);
   assert.match(zipBuilder, /"migrations\/0002_admin_sessions\.sql"/);
   assert.match(zipBuilder, /"migrations\/0005_private_deliveries\.sql"/);
+});
+
+test("existing customer databases can migrate admin login rate-limit storage", () => {
+  assert.match(zipBuilder, /migrations\/0006_admin_login_attempts\.sql/);
+  assert.match(customerSiteApi, /admin_login_attempts/);
 });
 
 test("customer ZIP builder supports API and Pages origin configuration", () => {
