@@ -2,7 +2,7 @@
 
 Đây là bộ khung website cửa hàng độc lập để đóng gói thành ZIP ở giai đoạn tiếp theo. Nó không kết nối với tài khoản, dữ liệu, API key hoặc cơ sở dữ liệu của AI Mini Business.
 
-## Có gì trong bộ mẫu?
+## Cách ly dữ liệu giữa các cửa hàng\nMỗi website ZIP được triển khai với một Worker và một D1 database riêng trong tài khoản Cloudflare của chính chủ website. Không dùng chung database giữa các cửa hàng. Vì vậy, dữ liệu sản phẩm/đơn hàng của cửa hàng này không được API của cửa hàng khác truy vấn. Chủ website phải giữ riêng thông tin đăng nhập Cloudflare và secret quản trị của mình. Đây là mô hình triển khai tách biệt theo hạ tầng, không phải mô hình nhiều cửa hàng dùng chung một database với tenant_id.\n\nKhách mua hàng hiện chỉ cần nhập tên và email để tạo đơn; starter này chưa có tài khoản/đăng nhập khách mua hàng. Trang quản trị là tài khoản quản trị duy nhất của từng cửa hàng, không phải hệ thống tài khoản khách hàng của AI Mini Business.\n\n## Có gì trong bộ mẫu?
 - Trang cửa hàng công khai: danh sách sản phẩm và biểu mẫu đặt hàng.
 - Cloudflare Worker API.
 - Cloudflare D1 schema cho sản phẩm và đơn hàng.
@@ -19,7 +19,7 @@ Từ thư mục `platform/customer-site`, chạy `npm install` rồi `npm run bu
 node tools/build-zip.mjs --config ./store.json --api-url https://YOUR-WORKER.workers.dev --pages-origin https://YOUR-STORE.pages.dev --output ./dist/customer-store.zip
 \`\`\`
 
-Bộ đóng gói bao gồm mã nguồn Worker, schema D1, cấu hình Wrangler, storefront, trang quản trị và README. Nó không chứa `ADMIN_API_TOKEN`, API key hoặc dữ liệu khách hàng. Đây là ZIP mã nguồn để khách hàng tự triển khai, không phải website đã được host sẵn. Sau khi giải nén, khách hàng vẫn phải tạo D1 database, cập nhật database ID, tạo bucket R2 riêng tư, đặt secret, triển khai Worker và tải thư mục `site` lên Pages theo hướng dẫn bên dưới. ZIP bao gồm các migration SQL từ 0002 đến 0005 để nâng cấp database đã có; database mới dùng `schema.sql`.
+Bộ đóng gói bao gồm mã nguồn Worker, schema D1, cấu hình Wrangler, storefront, trang quản trị và README. Nó không chứa `ADMIN_API_TOKEN`, API key hoặc dữ liệu khách hàng. Đây là ZIP mã nguồn để khách hàng tự triển khai, không phải website đã được host sẵn. Sau khi giải nén, khách hàng vẫn phải tạo D1 database, cập nhật database ID, tạo bucket R2 riêng tư, đặt secret, triển khai Worker và tải thư mục `site` lên Pages theo hướng dẫn bên dưới. ZIP bao gồm các migration SQL từ 0002 đến 0006 để nâng cấp database đã có; database mới dùng `schema.sql`.
 
 ## Chạy và triển khai
 1. Tạo D1 database: `npx wrangler d1 create customer-store-db`.
@@ -104,7 +104,7 @@ Lưu ý: quản trị viên vẫn phải xác nhận giao dịch thực tế và
 
  
 ## File bàn giao riêng tư (R2)
-Tạo bucket riêng: `npx wrangler r2 bucket create customer-store-private-deliveries`. Worker dùng binding `DELIVERIES` trong wrangler.toml; bucket không bật public access. Database mới chạy toàn bộ `schema.sql`. Database cũ cần lần lượt áp dụng các migration còn thiếu theo thứ tự 0002, 0003, 0004, 0005; không chạy lại migration đã áp dụng.
+Tạo bucket riêng: `npx wrangler r2 bucket create customer-store-private-deliveries`. Worker dùng binding `DELIVERIES` trong wrangler.toml; bucket không bật public access. Database mới chạy toàn bộ `schema.sql`. Database cũ cần lần lượt áp dụng các migration còn thiếu theo thứ tự 0002, 0003, 0004, 0005, 0006; không chạy lại migration đã áp dụng.
 
 Quản trị viên gửi file dạng multipart/form-data với field `file` đến `POST /api/admin/orders/:id/delivery-file`. Cho phép PDF, TXT, ZIP, DOCX, PNG và JPG; giới hạn 20 MiB. File lưu trong R2, không tạo URL công khai. Sau khi đã xác nhận thanh toán và đánh dấu bàn giao, quản trị viên gọi `POST /api/admin/orders/:id/delivery-link`. Link tải có hạn 24 giờ và chỉ dùng một lần. Endpoint tải kiểm tra lại trạng thái đơn, rồi đọc object từ bucket riêng tư.
 
