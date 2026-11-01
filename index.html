@@ -159,6 +159,12 @@
     .faq-item { padding: 19px 21px; border: 1px solid var(--line); border-radius: 15px; background: #fff; }
     .faq-item h3 { color: var(--navy); font-size: 15px; }
     .faq-item p { margin-top: 7px; color: var(--muted); font-size: 13px; }
+    .policy-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+    .policy-card { padding:22px; border:1px solid var(--line); border-radius:17px; background:#fff; }
+    .policy-card h3 { color:var(--navy); font-size:16px; }
+    .policy-card p, .policy-card li { color:var(--muted); font-size:13px; }
+    .policy-card p { margin-top:8px; }
+    .policy-card ul { margin:9px 0 0 19px; }
     .contact-card { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px; align-items: center; padding: 26px; border: 1px solid var(--line); border-radius: 18px; background: #fff; }
     .contact-card h3 { color: var(--navy); font-size: 17px; }
     .contact-card p { margin-top: 5px; color: var(--muted); font-size: 13px; }
@@ -183,7 +189,7 @@
       h1 { letter-spacing: -1.7px; }
       .hero-copy { font-size: 15px; }
       .hero-panel { padding: 20px; }
-      .product-grid, .benefits, .steps { grid-template-columns: 1fr; }
+      .product-grid, .benefits, .steps, .policy-grid { grid-template-columns: 1fr; }
       .product { min-height: 285px; }
       .section { padding: 57px 0; }
       .cta-band { align-items: flex-start; flex-direction: column; padding: 27px; }
@@ -209,6 +215,7 @@
         <a href="#about">Giới thiệu</a>
         <a href="#how">Cách mua</a>
         <a href="#faq">FAQ</a>
+        <a href="#privacy">Bảo mật</a>
         <a class="nav-cta" href="#contact">Liên hệ</a>
       </nav>
     </div>
@@ -351,6 +358,25 @@
           <article class="faq-item"><h3>Tôi có nhận được tài liệu ngay khi gửi biểu mẫu không?</h3><p>Chưa. Việc gửi biểu mẫu chỉ ghi nhận thông tin đặt mua. File được gửi sau khi người bán kiểm tra và xác nhận đã nhận thanh toán.</p></article>
           <article class="faq-item"><h3>Sản phẩm được giao dưới dạng gì?</h3><p>Đây là sản phẩm số định dạng PDF, được gửi qua email; bạn không cần chờ giao hàng vật lý.</p></article>
         </div>
+      </div>
+    </section>
+
+    <section class="section section-soft" id="privacy">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Minh bạch thông tin</div>
+          <h2>Thông tin mua hàng & quyền riêng tư</h2>
+          <p>Những điều khách hàng nên biết khi gửi yêu cầu đặt mua sản phẩm số tại AI Mini Business.</p>
+        </div>
+        <div class="policy-grid">
+          <article class="policy-card"><h3>1. Thông tin được thu thập</h3><p>Khi gửi biểu mẫu đặt mua, khách hàng cung cấp thông tin theo các trường hiển thị trong Google Form, bao gồm thông tin liên hệ như tên và email nếu biểu mẫu yêu cầu.</p></article>
+          <article class="policy-card"><h3>2. Mục đích sử dụng</h3><p>Thông tin được sử dụng để ghi nhận yêu cầu đặt mua, đối chiếu thanh toán, liên hệ khi cần và gửi tài liệu PDF đến email khách hàng đã cung cấp.</p></article>
+          <article class="policy-card"><h3>3. Cách xử lý đơn hàng</h3><p>Gửi biểu mẫu chưa có nghĩa là đơn hàng đã được xác nhận thanh toán. Người bán kiểm tra thanh toán trước; sau khi xác nhận, hệ thống gửi tài liệu qua Gmail.</p></article>
+          <article class="policy-card"><h3>4. Lưu ý khi đặt mua</h3><p>Khách hàng nên kiểm tra kỹ địa chỉ email trước khi gửi biểu mẫu. Không gửi mật khẩu, mã OTP hoặc thông tin đăng nhập tài khoản trong biểu mẫu.</p></article>
+          <article class="policy-card"><h3>5. Công cụ xử lý</h3><p>Quy trình hiện sử dụng các dịch vụ Google Form, Google Sheets và Gmail để tiếp nhận thông tin, quản lý đơn hàng và gửi tài liệu số.</p></article>
+          <article class="policy-card"><h3>6. Hỗ trợ và yêu cầu về dữ liệu</h3><p>Nếu cần hỗ trợ về đơn hàng hoặc thông tin đã gửi, khách hàng có thể liên hệ qua biểu mẫu hỗ trợ trên website. Vui lòng không gửi thông tin bí mật qua biểu mẫu.</p></article>
+        </div>
+        <p style="margin-top:18px;color:var(--muted);font-size:12px">Lưu ý: Nội dung này mô tả quy trình đang vận hành, không thay thế tư vấn pháp lý. Thông tin về thời hạn lưu trữ dữ liệu, điều kiện hoàn tiền và thông tin chủ thể kinh doanh cần được bổ sung sau khi được xác nhận.</p>
       </div>
     </section>
 
