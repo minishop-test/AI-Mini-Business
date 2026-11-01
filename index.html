@@ -1,245 +1,290 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Mini Business</title>
-  <meta name="description" content="AI Mini Business - Sản phẩm số và công cụ AI hữu ích.">
-
+  <meta name="theme-color" content="#101a33">
+  <title>AI Mini Business | Công cụ AI cho công việc và kinh doanh</title>
+  <meta name="description" content="Khám phá tài liệu số, bộ prompt AI và công cụ thực hành giúp bạn học tập, sáng tạo nội dung và kinh doanh hiệu quả hơn.">
+  <meta property="og:title" content="AI Mini Business">
+  <meta property="og:description" content="Sản phẩm số và công cụ AI hữu ích cho người mới bắt đầu.">
+  <meta property="og:type" content="website">
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    :root {
+      color-scheme: light;
+      --navy: #101a33;
+      --navy-2: #17264a;
+      --blue: #3867f4;
+      --blue-dark: #2853d8;
+      --ink: #17223b;
+      --muted: #66738d;
+      --line: #e7ebf3;
+      --surface: #ffffff;
+      --wash: #f5f7fc;
+      --mint: #eaf8f2;
+      --shadow: 0 18px 50px rgba(23, 38, 74, .09);
+      --radius: 22px;
     }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
     body {
-      font-family: Arial, sans-serif;
-      background: #f5f7fb;
-      color: #172033;
-      line-height: 1.6;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: #fff;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
     }
-
-    header {
-      background: #111827;
-      color: white;
-      padding: 18px 20px;
+    a { color: inherit; }
+    .wrap { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(16, 26, 51, .96);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(255,255,255,.1);
     }
-
-    .container {
-      width: 92%;
-      max-width: 1000px;
-      margin: auto;
+    .navrow { min-height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; color: #fff; font-weight: 800; letter-spacing: -.4px; }
+    .brand-mark {
+      display: grid; place-items: center; width: 39px; height: 39px; border-radius: 13px;
+      color: #fff; background: linear-gradient(135deg, #5d8cff, #3159dc); font-size: 20px;
+      box-shadow: 0 7px 20px rgba(56,103,244,.35);
     }
-
-    .brand {
-      font-size: 23px;
-      font-weight: bold;
-      color: #60a5fa;
-    }
-
-    nav {
-      margin-top: 12px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-    }
-
-    nav a {
-      color: white;
-      text-decoration: none;
-      font-size: 14px;
-    }
-
+    .brand small { display: block; color: #aebbd7; font-size: 10px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; line-height: 1.2; }
+    nav { display: flex; align-items: center; gap: 27px; }
+    nav a { color: #dce5f8; font-size: 13px; font-weight: 650; text-decoration: none; transition: color .2s; }
+    nav a:hover { color: #fff; }
+    .nav-cta { padding: 10px 16px; border-radius: 11px; color: #fff; background: var(--blue); }
     .hero {
-      background: linear-gradient(135deg, #172554, #2563eb);
-      color: white;
-      padding: 65px 20px;
-      text-align: center;
+      position: relative; overflow: hidden; color: #fff;
+      background: radial-gradient(circle at 82% 20%, rgba(92,135,255,.35), transparent 29%),
+                  radial-gradient(circle at 10% 90%, rgba(57,195,174,.15), transparent 27%),
+                  linear-gradient(125deg, #101a33 0%, #172b59 57%, #234ba8 100%);
+      padding: 92px 0 88px;
     }
-
-    .hero h1 {
-      font-size: 34px;
-      margin-bottom: 15px;
+    .hero:after {
+      content: ""; position: absolute; width: 390px; height: 390px; right: -110px; bottom: -250px;
+      border: 1px solid rgba(255,255,255,.16); border-radius: 50%;
+      box-shadow: 0 0 0 42px rgba(255,255,255,.035), 0 0 0 84px rgba(255,255,255,.025);
     }
-
-    .hero p {
-      max-width: 600px;
-      margin: auto;
-      color: #dbeafe;
+    .hero-grid { display: grid; grid-template-columns: 1.15fr .85fr; align-items: center; gap: 54px; position: relative; z-index: 1; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; color: #c5d5ff; font-size: 12px; font-weight: 750; letter-spacing: 1.4px; text-transform: uppercase; }
+    .eyebrow:before { content: ""; width: 22px; height: 2px; background: #7da2ff; }
+    h1 { max-width: 700px; margin: 17px 0 19px; font-size: clamp(38px, 5.4vw, 62px); line-height: 1.08; letter-spacing: -2.7px; }
+    h1 span { color: #91b0ff; }
+    .hero-copy { max-width: 590px; color: #d2dcf2; font-size: 17px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+    .btn { display: inline-flex; justify-content: center; align-items: center; gap: 9px; min-height: 48px; padding: 0 20px; border-radius: 12px; font-weight: 750; font-size: 14px; text-decoration: none; transition: transform .2s, box-shadow .2s, background .2s; }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-primary { background: #fff; color: #1c3c91; box-shadow: 0 10px 24px rgba(0,0,0,.13); }
+    .btn-ghost { border: 1px solid rgba(255,255,255,.3); color: #fff; }
+    .hero-note { margin-top: 20px; color: #aebddd; font-size: 12px; }
+    .hero-panel {
+      padding: 25px; border: 1px solid rgba(255,255,255,.17); border-radius: 24px;
+      background: rgba(255,255,255,.09); backdrop-filter: blur(12px); box-shadow: 0 25px 70px rgba(0,0,0,.18);
+      transform: rotate(1.5deg);
     }
-
-    .section {
-      padding: 42px 0;
+    .panel-top { display: flex; justify-content: space-between; align-items: center; color: #d9e4ff; font-size: 12px; font-weight: 700; }
+    .dots { display: flex; gap: 5px; } .dots i { width: 7px; height: 7px; border-radius: 50%; background: #a9bbeb; }
+    .panel-title { margin: 24px 0 17px; font-size: 21px; font-weight: 800; }
+    .mini-task { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-top: 1px solid rgba(255,255,255,.13); color: #e5edff; font-size: 13px; }
+    .mini-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 11px; background: rgba(255,255,255,.13); font-size: 16px; }
+    .mini-task small { display: block; color: #aebddd; font-size: 11px; }
+    .section { padding: 82px 0; }
+    .section-soft { background: var(--wash); }
+    .section-head { max-width: 650px; margin-bottom: 34px; }
+    .kicker { color: var(--blue); font-size: 11px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; }
+    h2 { margin-top: 8px; color: var(--navy); font-size: clamp(28px, 3.5vw, 39px); line-height: 1.2; letter-spacing: -1.2px; }
+    .section-head p { margin-top: 12px; color: var(--muted); font-size: 15px; }
+    .product-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 19px; }
+    .product {
+      display: flex; flex-direction: column; min-height: 310px; padding: 24px;
+      border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+      box-shadow: 0 8px 30px rgba(23,38,74,.045); transition: transform .2s, box-shadow .2s;
     }
-
-    .section h2 {
-      margin-bottom: 20px;
-      font-size: 25px;
+    .product:hover { transform: translateY(-5px); box-shadow: var(--shadow); }
+    .product-featured { border-color: #cbd8ff; background: linear-gradient(160deg, #fff, #f4f7ff); }
+    .product-icon { display: grid; place-items: center; width: 53px; height: 53px; border-radius: 16px; background: #edf2ff; font-size: 25px; }
+    .product h3 { margin-top: 20px; color: var(--navy); font-size: 19px; letter-spacing: -.3px; }
+    .product p { margin-top: 9px; color: var(--muted); font-size: 13px; }
+    .tag { display: inline-flex; align-self: flex-start; margin-top: 15px; padding: 5px 9px; border-radius: 7px; background: #edf2ff; color: #3159c9; font-size: 10px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
+    .product .btn { width: 100%; margin-top: auto; }
+    .btn-blue { color: #fff; background: var(--blue); box-shadow: 0 8px 18px rgba(56,103,244,.2); }
+    .btn-blue:hover { background: var(--blue-dark); }
+    .btn-disabled { color: #8792a7; background: #eef1f6; cursor: default; }
+    .benefits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .benefit { padding: 22px; border: 1px solid var(--line); border-radius: 17px; background: #fff; }
+    .benefit-icon { font-size: 23px; }
+    .benefit h3 { margin-top: 12px; color: var(--navy); font-size: 16px; }
+    .benefit p { margin-top: 6px; color: var(--muted); font-size: 13px; }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; counter-reset: step; }
+    .step { position: relative; padding: 24px; border-radius: 18px; background: #fff; border: 1px solid var(--line); }
+    .step-no { display: grid; place-items: center; width: 35px; height: 35px; border-radius: 11px; background: #eaf0ff; color: var(--blue); font-weight: 850; font-size: 13px; }
+    .step h3 { margin-top: 15px; color: var(--navy); font-size: 16px; }
+    .step p { margin-top: 7px; color: var(--muted); font-size: 13px; }
+    .cta-band { padding: 38px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-radius: 24px; color: #fff; background: linear-gradient(120deg, #17264a, #315ed7); }
+    .cta-band h2 { color: #fff; font-size: 27px; }
+    .cta-band p { margin-top: 7px; color: #d5e0ff; font-size: 13px; }
+    .contact-card { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px; align-items: center; padding: 26px; border: 1px solid var(--line); border-radius: 18px; background: #fff; }
+    .contact-card h3 { color: var(--navy); font-size: 17px; }
+    .contact-card p { margin-top: 5px; color: var(--muted); font-size: 13px; }
+    footer { padding: 27px 0; color: #aebbd4; background: var(--navy); font-size: 12px; }
+    .footer-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .footer-brand { color: #fff; font-weight: 800; }
+    @media (max-width: 800px) {
+      .hero-grid { grid-template-columns: 1fr; gap: 38px; }
+      .hero-panel { max-width: 520px; transform: none; }
+      .product-grid, .benefits, .steps { grid-template-columns: repeat(2, 1fr); }
+      .section { padding: 66px 0; }
     }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
+    @media (max-width: 600px) {
+      .wrap { width: min(100% - 30px, 1120px); }
+      .navrow { min-height: 66px; align-items: flex-start; flex-direction: column; gap: 10px; padding: 13px 0; }
+      nav { width: 100%; gap: 17px; overflow-x: auto; padding-bottom: 2px; }
+      nav a { white-space: nowrap; font-size: 12px; }
+      .nav-cta { padding: 0; color: #91b0ff; background: transparent; }
+      .hero { padding: 65px 0 60px; }
+      h1 { letter-spacing: -1.7px; }
+      .hero-copy { font-size: 15px; }
+      .hero-panel { padding: 20px; }
+      .product-grid, .benefits, .steps { grid-template-columns: 1fr; }
+      .product { min-height: 285px; }
+      .section { padding: 57px 0; }
+      .cta-band { align-items: flex-start; flex-direction: column; padding: 27px; }
+      .cta-band .btn { width: 100%; }
     }
-
-    .item {
-      background: white;
-      padding: 22px;
-      border-radius: 14px;
-      box-shadow: 0 4px 15px #0000000a;
-    }
-
-    .item h3 {
-      margin-bottom: 10px;
-      color: #1d4ed8;
-    }
-
-    .item p {
-      color: #64748b;
-      font-size: 14px;
-    }
-
-    .contact {
-      background: #eaf1ff;
-      padding: 28px;
-      border-radius: 14px;
-    }
-
-    .contact a {
-      color: #1d4ed8;
-      font-weight: bold;
-    }
-
-    footer {
-      background: #111827;
-      color: #cbd5e1;
-      text-align: center;
-      padding: 22px;
-      font-size: 13px;
-    }
-
-    @media (max-width: 500px) {
-      .hero h1 {
-        font-size: 27px;
-      }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *:before, *:after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
     }
   </style>
 </head>
-
 <body>
-
-  <header>
-    <div class="container">
-      <div class="brand">AI Mini Business</div>
-
-      <nav>
+  <header class="topbar">
+    <div class="wrap navrow">
+      <a class="brand" href="#home" aria-label="AI Mini Business - Trang chủ">
+        <span class="brand-mark">✦</span>
+        <span>AI Mini Business<small>Digital tools · Smarter work</small></span>
+      </a>
+      <nav aria-label="Điều hướng chính">
         <a href="#home">Trang chủ</a>
         <a href="#products">Sản phẩm</a>
-        <a href="#services">Dịch vụ AI</a>
-        <a href="#contact">Liên hệ</a>
+        <a href="#benefits">Lợi ích</a>
+        <a href="#how">Cách mua</a>
+        <a class="nav-cta" href="#contact">Liên hệ</a>
       </nav>
     </div>
   </header>
 
-  <section class="hero" id="home">
-    <div class="container">
-      <h1>Kinh doanh thông minh cùng AI</h1>
-      <p>
-        Khám phá các sản phẩm số và dịch vụ AI
-        giúp bạn tiết kiệm thời gian, làm việc hiệu quả hơn.
-      </p>
-    </div>
-  </section>
-
-  <main class="container">
-
-    <section class="section" id="products">
-      <h2>Sản phẩm số</h2>
-
-      <div class="grid">
-        <div class="item">
-  <h3>📘 50 Prompt AI</h3>
-
-  <p>
-    Bộ 50 câu lệnh AI giúp người mới kinh doanh
-    tiết kiệm thời gian và xây dựng công việc hiệu quả.
-  </p>
-
-  <p style="margin-top: 15px;">
-    <strong>Sản phẩm PDF</strong>
-  </p>
-
-  <a
-    href="https://forms.gle/sqPEfqQTzrCajfmq9"
-    target="_blank"
-    style="
-      display: block;
-      margin-top: 15px;
-      padding: 12px;
-      background: #2563eb;
-      color: white;
-      text-align: center;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: bold;
-    "
-  >
-    MUA NGAY
-  </a>
+  <main>
+    <section class="hero" id="home">
+      <div class="wrap hero-grid">
+        <div>
+          <div class="eyebrow">Bắt đầu thông minh hơn cùng AI</div>
+          <h1>Công cụ nhỏ.<br><span>Ý tưởng lớn.</span></h1>
+          <p class="hero-copy">Khám phá tài liệu số và bộ prompt thực hành giúp bạn khai thác AI trong học tập, sáng tạo nội dung và kinh doanh — dễ tiếp cận, dễ áp dụng.</p>
+          <div class="actions">
+            <a class="btn btn-primary" href="#products">Khám phá sản phẩm <span aria-hidden="true">→</span></a>
+            <a class="btn btn-ghost" href="#how">Cách thức hoạt động</a>
+          </div>
+          <p class="hero-note">Tài liệu số dễ truy cập · Hướng dẫn rõ ràng · Phù hợp người mới bắt đầu</p>
         </div>
-
-        <div class="item">
-          <h3>📝 Bộ nội dung</h3>
-          <p>Mẫu caption, kịch bản video và ý tưởng sáng tạo.</p>
-        </div>
-
-        <div class="item">
-          <h3>📅 Planner</h3>
-          <p>Các mẫu kế hoạch và checklist hỗ trợ công việc.</p>
+        <div class="hero-panel" aria-label="Các ứng dụng của AI">
+          <div class="panel-top"><span>AI WORKFLOW</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="panel-title">Biến ý tưởng thành hành động</div>
+          <div class="mini-task"><span class="mini-icon">💡</span><span><strong>Lên ý tưởng</strong><small>Tìm hướng đi và kế hoạch phù hợp</small></span></div>
+          <div class="mini-task"><span class="mini-icon">✍️</span><span><strong>Tạo nội dung</strong><small>Viết, chỉnh sửa và phát triển ý tưởng</small></span></div>
+          <div class="mini-task"><span class="mini-icon">📈</span><span><strong>Tối ưu công việc</strong><small>Tiết kiệm thời gian cho việc lặp lại</small></span></div>
         </div>
       </div>
     </section>
 
-    <section class="section" id="services">
-      <h2>Dịch vụ AI</h2>
-
-      <div class="grid">
-        <div class="item">
-          <h3>🤖 Viết nội dung</h3>
-          <p>Hỗ trợ tạo bài viết, kịch bản và ý tưởng bằng AI.</p>
+    <section class="section" id="products">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Thư viện sản phẩm</div>
+          <h2>Công cụ thiết thực cho hành trình số</h2>
+          <p>Bắt đầu với tài liệu hướng dẫn và bộ câu lệnh có thể áp dụng ngay. Các sản phẩm đang phát triển sẽ được mở bán khi hoàn thiện.</p>
         </div>
-
-        <div class="item">
-          <h3>🎬 Kịch bản video</h3>
-          <p>Hỗ trợ xây dựng nội dung cho Shorts và Reels.</p>
+        <div class="product-grid">
+          <article class="product product-featured">
+            <div class="product-icon" aria-hidden="true">📘</div>
+            <span class="tag">Sản phẩm hiện có</span>
+            <h3>50 Prompt AI cho người mới kinh doanh</h3>
+            <p>Bộ câu lệnh hỗ trợ lên ý tưởng, lập kế hoạch, viết nội dung và tổ chức công việc kinh doanh.</p>
+            <a class="btn btn-blue" href="https://forms.gle/sqPEfqQTzrCajfmq9" target="_blank" rel="noopener noreferrer">Xem thông tin & đặt mua <span aria-hidden="true">→</span></a>
+          </article>
+          <article class="product">
+            <div class="product-icon" aria-hidden="true">📝</div>
+            <span class="tag">Đang phát triển</span>
+            <h3>Bộ nội dung sáng tạo</h3>
+            <p>Mẫu caption, khung kịch bản video ngắn và gợi ý nội dung dành cho người làm nội dung.</p>
+            <span class="btn btn-disabled" aria-disabled="true">Sắp ra mắt</span>
+          </article>
+          <article class="product">
+            <div class="product-icon" aria-hidden="true">📅</div>
+            <span class="tag">Đang phát triển</span>
+            <h3>Planner & Checklist</h3>
+            <p>Mẫu lập kế hoạch và theo dõi công việc để biến mục tiêu thành các bước thực hiện cụ thể.</p>
+            <span class="btn btn-disabled" aria-disabled="true">Sắp ra mắt</span>
+          </article>
         </div>
+      </div>
+    </section>
 
-        <div class="item">
-          <h3>🎨 Sáng tạo ý tưởng</h3>
-          <p>Hỗ trợ phát triển ý tưởng cho công việc và kinh doanh.</p>
+    <section class="section section-soft" id="benefits">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Giá trị sử dụng</div>
+          <h2>Tập trung vào việc áp dụng, không chỉ đọc</h2>
+          <p>Mỗi tài liệu được định hướng để giúp bạn bắt đầu nhanh hơn và có quy trình làm việc rõ ràng hơn với AI.</p>
+        </div>
+        <div class="benefits">
+          <article class="benefit"><div class="benefit-icon">🎯</div><h3>Dễ bắt đầu</h3><p>Cấu trúc rõ ràng, phù hợp cả với người mới làm quen các công cụ AI.</p></article>
+          <article class="benefit"><div class="benefit-icon">⚡</div><h3>Tiết kiệm thời gian</h3><p>Dùng mẫu và câu lệnh có sẵn để giảm thời gian bắt đầu từ trang giấy trắng.</p></article>
+          <article class="benefit"><div class="benefit-icon">🧩</div><h3>Linh hoạt ứng dụng</h3><p>Có thể điều chỉnh nội dung theo mục tiêu, ngành nghề và tình huống thực tế.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="how">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Quy trình đơn giản</div>
+          <h2>Mua và nhận sản phẩm như thế nào?</h2>
+          <p>Với sản phẩm đang mở bán, bạn thực hiện theo các bước dưới đây. Thông tin thanh toán và giao hàng cụ thể sẽ được hướng dẫn trong biểu mẫu.</p>
+        </div>
+        <div class="steps">
+          <article class="step"><div class="step-no">01</div><h3>Chọn sản phẩm</h3><p>Xem mô tả và mở biểu mẫu đặt mua của sản phẩm bạn quan tâm.</p></article>
+          <article class="step"><div class="step-no">02</div><h3>Gửi thông tin</h3><p>Điền thông tin cần thiết và làm theo hướng dẫn thanh toán được cung cấp.</p></article>
+          <article class="step"><div class="step-no">03</div><h3>Nhận tài liệu</h3><p>Đơn hàng được kiểm tra; sản phẩm PDF được gửi theo quy trình giao hàng hiện hành.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-soft">
+      <div class="wrap">
+        <div class="cta-band">
+          <div><div class="kicker" style="color:#b9ccff">Sẵn sàng bắt đầu?</div><h2>Chọn một công cụ phù hợp với bạn.</h2><p>Khám phá bộ 50 Prompt AI dành cho người mới kinh doanh.</p></div>
+          <a class="btn btn-primary" href="https://forms.gle/sqPEfqQTzrCajfmq9" target="_blank" rel="noopener noreferrer">Xem sản phẩm <span aria-hidden="true">→</span></a>
         </div>
       </div>
     </section>
 
     <section class="section" id="contact">
-      <div class="contact">
-        <h2>Liên hệ</h2>
-        <p>
-          Bạn quan tâm đến sản phẩm hoặc dịch vụ?
-          Hãy liên hệ với chúng tôi.
-        </p>
-        <p>Email: <strong>Đang cập nhật</strong></p>
+      <div class="wrap">
+        <div class="contact-card">
+          <div><h3>Cần hỗ trợ về sản phẩm?</h3><p>Gửi câu hỏi qua biểu mẫu đặt mua hoặc quay lại trang này để xem thông tin cập nhật.</p></div>
+          <a class="btn btn-blue" href="https://forms.gle/sqPEfqQTzrCajfmq9" target="_blank" rel="noopener noreferrer">Liên hệ qua biểu mẫu <span aria-hidden="true">→</span></a>
+        </div>
       </div>
     </section>
-
   </main>
 
   <footer>
-    © 2026 AI Mini Business. All rights reserved.
+    <div class="wrap footer-row">
+      <span class="footer-brand">AI Mini Business</span>
+      <span>© 2026 AI Mini Business. Nội dung và sản phẩm thuộc quyền quản lý của đơn vị phát hành.</span>
+    </div>
   </footer>
-
 </body>
 </html>
