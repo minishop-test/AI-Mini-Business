@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101a33">
+  <title>50 Prompt AI cho người mới kinh doanh | AI Mini Business</title>
+  <meta name="description" content="Tìm hiểu bộ 50 Prompt AI hỗ trợ người mới kinh doanh lên ý tưởng, lập kế hoạch và sáng tạo nội dung.">
+  <style>
+    :root{--navy:#101a33;--blue:#3867f4;--ink:#17223b;--muted:#66738d;--line:#e7ebf3;--wash:#f5f7fc}
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);line-height:1.65;background:#fff}
+    a{color:inherit}
+    .wrap{width:min(1050px,calc(100% - 36px));margin:auto}
+    header{position:sticky;top:0;z-index:5;background:rgba(16,26,51,.97);color:#fff}
+    .nav{min-height:66px;display:flex;align-items:center;justify-content:space-between;gap:15px}
+    .brand{text-decoration:none;font-weight:850;letter-spacing:-.3px}
+    .back{font-size:13px;color:#dce5f8;text-decoration:none}
+    .hero{padding:55px 0 48px;background:radial-gradient(circle at 85% 15%,rgba(92,135,255,.3),transparent 28%),linear-gradient(125deg,#101a33,#234ba8);color:#fff}
+    .hero-grid{display:grid;grid-template-columns:1fr .9fr;gap:35px;align-items:center}
+    .eyebrow{color:#c5d5ff;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
+    h1{font-size:clamp(32px,5vw,51px);line-height:1.1;letter-spacing:-1.8px;margin:13px 0}
+    .hero p{color:#d2dcf2;font-size:15px;max-width:590px}
+    .cover{min-height:255px;padding:25px;display:flex;flex-direction:column;justify-content:flex-end;border:1px solid rgba(255,255,255,.25);border-radius:23px;background:radial-gradient(circle at 80% 20%,rgba(125,166,255,.75),transparent 32%),linear-gradient(145deg,#0d1834,#2e61db);box-shadow:0 25px 65px rgba(0,0,0,.2);position:relative;overflow:hidden}
+    .cover:after{content:"";position:absolute;width:240px;height:240px;border:1px solid #ffffff38;border-radius:50%;right:-80px;top:-120px;box-shadow:0 0 0 28px #ffffff0b,0 0 0 56px #ffffff0b}
+    .cover>*{position:relative;z-index:1}
+    .cover small{font-size:10px;letter-spacing:2px;color:#dce6ff;font-weight:800}
+    .cover strong{font-size:36px;line-height:1.05;margin:9px 0}
+    .cover span{font-size:12px;color:#dce6ff}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:49px;padding:0 20px;border-radius:12px;font-size:14px;font-weight:800;text-decoration:none}
+    .btn-white{background:#fff;color:#23418d;margin-top:24px}
+    .btn-blue{background:var(--blue);color:#fff;width:100%;box-shadow:0 9px 20px #3867f433}
+    .section{padding:62px 0}
+    .soft{background:var(--wash)}
+    .kicker{color:var(--blue);font-size:11px;font-weight:850;letter-spacing:1.5px;text-transform:uppercase}
+    h2{font-size:clamp(26px,3.5vw,35px);line-height:1.2;letter-spacing:-1px;color:var(--navy);margin:8px 0 12px}
+    .intro{max-width:690px;color:var(--muted);font-size:14px}
+    .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:26px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:20px}
+    .card h3{font-size:16px;color:var(--navy)}
+    .card p{margin-top:6px;color:var(--muted);font-size:13px}
+    .sample{margin-top:25px;padding:22px;border-radius:18px;background:#fff;border:1px solid var(--line)}
+    .sample-label{font-size:10px;color:var(--blue);font-weight:850;letter-spacing:1.2px;text-transform:uppercase}
+    .sample blockquote{margin-top:10px;color:#33415f;font-size:14px}
+    .sample-note{margin-top:10px;color:#8792a7;font-size:11px}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:25px}
+    .checklist{list-style:none;margin-top:12px}
+    .checklist li{padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;color:#4d5a73}
+    .checklist li:before{content:"✓";color:#23845c;font-weight:900;margin-right:9px}
+    .pricebox{margin-top:22px;padding:20px;border:1px dashed #b9c9f7;border-radius:16px;background:#f7f9ff}
+    .pricebox small{display:block;color:#66738d;font-size:10px;font-weight:850;letter-spacing:1px;text-transform:uppercase}
+    .price{font-size:29px;font-weight:900;color:#244db5;line-height:1.3}
+    .pricebox p{font-size:11px;color:#7a8498}
+    .buy{padding:25px;border-radius:21px;background:linear-gradient(120deg,#17264a,#315ed7);color:#fff}
+    .buy h2{color:#fff;font-size:25px}
+    .buy p{color:#d5e0ff;font-size:13px;margin:8px 0}
+    .buy .btn{margin-top:13px}
+    .disclaimer{font-size:11px;color:#8490a5;margin-top:14px}
+    footer{background:var(--navy);color:#aebbd4;padding:25px 0;font-size:12px}
+    @media(max-width:700px){.hero-grid,.two{grid-template-columns:1fr}.cover{min-height:205px}.cards{grid-template-columns:1fr}.hero{padding:43px 0}.section{padding:48px 0}.nav{min-height:60px}}
+  </style>
+</head>
+<body>
+<header><div class="wrap nav"><a class="brand" href="index.html">✦ AI Mini Business</a><a class="back" href="index.html">← Quay lại cửa hàng</a></div></header>
+<main>
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">Tài liệu số · Dành cho người mới</div>
+      <h1>50 Prompt AI<br>cho người mới kinh doanh</h1>
+      <p>Bộ câu lệnh gợi ý để bạn bắt đầu khai thác AI trong quá trình tìm ý tưởng, lên kế hoạch, sáng tạo nội dung và tổ chức công việc.</p>
+      <a class="btn btn-white" href="#dat-mua">Xem thông tin đặt mua →</a>
+    </div>
+    <div class="cover" role="img" aria-label="Bìa minh họa bộ 50 Prompt AI">
+      <small>AI MINI BUSINESS · DIGITAL GUIDE</small>
+      <strong>50 PROMPT<br>AI</strong>
+      <span>Dành cho người mới kinh doanh</span>
+    </div>
+  </div>
+</section>
+<section class="section">
+  <div class="wrap">
+    <div class="kicker">Bạn sẽ tìm thấy gì?</div>
+    <h2>Biến câu hỏi thành những bước hành động</h2>
+    <p class="intro">Thay vì phải nghĩ cách viết câu lệnh từ đầu, bạn có thể tham khảo cấu trúc prompt, thay thông tin trong ngoặc vuông và điều chỉnh kết quả theo tình huống thực tế.</p>
+    <div class="cards">
+      <article class="card"><h3>💡 Tìm ý tưởng kinh doanh</h3><p>Gợi ý cách khám phá nhu cầu, xác định vấn đề khách hàng và phát triển ý tưởng ban đầu.</p></article>
+      <article class="card"><h3>🧭 Lập kế hoạch</h3><p>Hỗ trợ chia mục tiêu thành đầu việc, xác định ưu tiên và xây dựng kế hoạch triển khai.</p></article>
+      <article class="card"><h3>✍️ Sáng tạo nội dung</h3><p>Tham khảo cách yêu cầu AI viết bài giới thiệu, nội dung mạng xã hội và thông điệp bán hàng.</p></article>
+      <article class="card"><h3>📋 Tổ chức công việc</h3><p>Gợi ý cách tạo checklist, quy trình đơn giản và theo dõi các công việc thường ngày.</p></article>
+    </div>
+    <div class="sample">
+      <div class="sample-label">Prompt mẫu minh họa</div>
+      <blockquote>“Hãy đóng vai cố vấn kinh doanh cho người mới. Dựa trên [sản phẩm/dịch vụ] và [nhóm khách hàng], đề xuất 5 ý tưởng nội dung có thể triển khai với ngân sách thấp. Trình bày thành bảng gồm: ý tưởng, mục tiêu, cách thực hiện và lời kêu gọi hành động.”</blockquote>
+      <p class="sample-note">Đây là ví dụ minh họa cách sử dụng prompt, không khẳng định là một trong 50 câu lệnh nguyên bản của tài liệu.</p>
+    </div>
+  </div>
+</section>
+<section class="section soft">
+  <div class="wrap">
+    <div class="kicker">Phù hợp với ai?</div>
+    <h2>Dành cho người muốn bắt đầu đơn giản</h2>
+    <div class="two">
+      <div class="card">
+        <h3>Bạn có thể phù hợp nếu:</h3>
+        <ul class="checklist">
+          <li>Mới bắt đầu tìm hiểu và sử dụng AI</li>
+          <li>Đang có ý tưởng kinh doanh nhỏ</li>
+          <li>Muốn tiết kiệm thời gian lên nội dung</li>
+          <li>Cần gợi ý để sắp xếp công việc rõ ràng hơn</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Cách sử dụng gợi ý:</h3>
+        <ul class="checklist">
+          <li>Chọn prompt gần với nhu cầu của bạn</li>
+          <li>Thay phần thông tin trong dấu ngoặc vuông</li>
+          <li>Đưa prompt vào công cụ AI đang dùng</li>
+          <li>Kiểm tra và chỉnh sửa kết quả trước khi áp dụng</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="section" id="dat-mua">
+  <div class="wrap">
+    <div class="buy">
+      <div class="eyebrow">AI Mini Business · Sản phẩm PDF</div>
+      <h2>Bắt đầu khám phá 50 Prompt AI</h2>
+      <p>Giá dưới đây chỉ là mức tham khảo để minh họa giao diện, chưa phải giá bán chính thức.</p>
+      <div class="pricebox">
+        <small>Giá tham khảo minh họa</small>
+        <div class="price">29.000đ</div>
+        <p>Giá bán chính thức sẽ được cập nhật sau.</p>
+      </div>
+      <a class="btn btn-white" style="width:100%" href="https://forms.gle/sqPEfqQTzrCajfmq9" target="_blank" rel="noopener noreferrer">Mở biểu mẫu đặt mua →</a>
+    </div>
+    <p class="disclaimer">Lưu ý: Prompt là công cụ hỗ trợ tham khảo. Kết quả AI có thể cần kiểm tra, chỉnh sửa và không đảm bảo kết quả kinh doanh.</p>
+  </div>
+</section>
+</main>
+<footer><div class="wrap">© 2026 AI Mini Business · <a href="index.html">Quay lại trang chủ</a></div></footer>
+</body>
+</html>
