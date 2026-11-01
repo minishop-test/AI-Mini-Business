@@ -366,7 +366,7 @@ test("customer storefront admin awaits session checks and throttles failed login
   assert.match(customerSiteApi, /DELETE FROM admin_login_attempts WHERE ip_hash=\?/);
   assert.match(customerSiteApi, /datetime\('now','\+30 minutes'\)/);
   assert.match(customerSiteApi, /expires_in: 1800/);
-  assert.match(customerSiteApi, /15 \* 60 \* 1000/);
+  assert.match(customerSiteApi, /datetime\('now','-15 minutes'\)/);
   assert.match(customerSiteApi, /login_rate_limited/);
   assert.match(customerSiteSchema, /CREATE TABLE IF NOT EXISTS admin_login_attempts/);
   assert.match(customerAdmin, /api\/admin\/login/);
