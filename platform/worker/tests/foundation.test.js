@@ -203,6 +203,13 @@ test("customer starter protects admin endpoints with a server-side secret", () =
   assert.match(customerSiteApi, /untrusted_origin/);
 });
 
+test("customer website deployment isolates each store in its own D1 database", () => {
+  assert.match(customerSiteReadme, /một D1 database riêng/);
+  assert.match(customerSiteReadme, /Không dùng chung database giữa các cửa hàng/);
+  assert.match(customerSiteReadme, /không phải mô hình nhiều cửa hàng dùng chung một database/);
+  assert.match(customerSiteReadme, /chưa có tài khoản\/đăng nhập khách mua hàng/);
+});
+
 test("customer storefront uses safe text rendering and submits orders through its own API", () => {
   assert.match(customerSiteHtml, /const API_BASE=/);
   assert.match(customerSiteHtml, /textContent=p\.name/);
