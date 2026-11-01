@@ -351,6 +351,13 @@ test("customer storefront admin uses expiring hashed sessions and deployment sch
   assert.match(customerSiteReadme, /0002_admin_sessions\.sql/);
 });
 
+test("admin login rate-limit increments atomically to avoid concurrent bypass", () => {
+  assert.match(customerSiteApi, /ON CONFLICT\(ip_hash\) DO UPDATE SET/);
+  assert.match(customerSiteApi, /attempts=CASE WHEN window_started <= datetime\('now','-15 minutes'\) THEN 1 ELSE attempts\+1 END/);
+  assert.match(customerSiteApi, /RETURNING attempts/);
+  assert.match(customerSiteApi, /attempt\.attempts > 5/);
+});
+
 test("customer storefront admin awaits session checks and throttles failed login attempts", () => {
   assert.match(customerSiteApi, /await isAdmin\(request, env\)/);
   assert.doesNotMatch(customerSiteApi, /if \(!isAdmin\(request, env\)\)/);
