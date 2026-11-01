@@ -108,14 +108,14 @@ export default {
         const data = await bodyJson(request, 1000);
         const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
         const ipHash = await hashSessionToken("login:" + clientIp);
-        const attempts = await env.DB.prepare("SELECT attempts, window_started FROM admin_login_attempts WHERE ip_hash=?").bind(ipHash).first();
-        const windowActive = attempts && (Date.now() - Date.parse(attempts.window_started + " UTC")) < 15 * 60 * 1000;
-        if (windowActive && attempts.attempts >= 5) return json({ error: "login_rate_limited", message: "Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau 15 phút." }, 429, request, env);
-        if (windowActive) {
-          await env.DB.prepare("UPDATE admin_login_attempts SET attempts=attempts+1 WHERE ip_hash=?").bind(ipHash).run();
-        } else {
-          await env.DB.prepare("INSERT INTO admin_login_attempts (ip_hash,attempts,window_started) VALUES (?,1,CURRENT_TIMESTAMP) ON CONFLICT(ip_hash) DO UPDATE SET attempts=1,window_started=CURRENT_TIMESTAMP").bind(ipHash).run();
-        }
+        const attempt = await env.DB.prepare(
+          "INSERT INTO admin_login_attempts (ip_hash,attempts,window_started) VALUES (?,1,CURRENT_TIMESTAMP) " +
+          "ON CONFLICT(ip_hash) DO UPDATE SET " +
+          "attempts=CASE WHEN window_started <= datetime('now','-15 minutes') THEN 1 ELSE attempts+1 END, " +
+          "window_started=CASE WHEN window_started <= datetime('now','-15 minutes') THEN CURRENT_TIMESTAMP ELSE window_started END " +
+          "RETURNING attempts"
+        ).bind(ipHash).first();
+        if (attempt && attempt.attempts > 5) return json({ error: "login_rate_limited", message: "Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau 15 phút." }, 429, request, env);
         const expected = env.ADMIN_API_TOKEN || "";
         const supplied = typeof data?.token === "string" ? data.token : "";
         if (!expected || !supplied || supplied.length > 256) return json({ error: "unauthorized" }, 401, request, env);
