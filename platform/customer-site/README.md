@@ -24,7 +24,8 @@ Bộ đóng gói bao gồm mã nguồn Worker, schema D1, cấu hình Wrangler, 
 ## Chạy và triển khai
 1. Tạo D1 database: `npx wrangler d1 create customer-store-db`.
 2. Điền database ID vào `wrangler.toml`.
-3. Áp dụng schema: `npx wrangler d1 execute customer-store-db --remote --file=./schema.sql`.\n4. Tạo kho file riêng tư: `npx wrangler r2 bucket create customer-store-private-deliveries`. Không bật public access cho bucket này.
+3. Áp dụng schema: `npx wrangler d1 execute customer-store-db --remote --file=./schema.sql`.
+4. Tạo kho file riêng tư: `npx wrangler r2 bucket create customer-store-private-deliveries`. Không bật public access cho bucket này.
 5. Cài công cụ: `npm install`.
 6. Đặt secret quản trị: `npx wrangler secret put ADMIN_API_TOKEN` (tạo token dài, ngẫu nhiên; không dùng mật khẩu dễ đoán).
 7. Cấu hình `ALLOWED_ORIGIN` trong `wrangler.toml` thành origin chính xác của trang Pages, không có dấu / cuối.
@@ -35,24 +36,25 @@ Bộ đóng gói bao gồm mã nguồn Worker, schema D1, cấu hình Wrangler, 
 
 Mở `admin.html` sau khi triển khai trang Pages. Nhập `ADMIN_API_TOKEN` đã đặt bằng Wrangler secret. Backend xác thực token một lần qua `POST /api/admin/login`, sau đó cấp session token ngẫu nhiên có thời hạn 30 phút. Database chỉ lưu SHA-256 hash của session token; session hết hạn tự động bị từ chối. Nút đăng xuất gọi endpoint thu hồi session. Trình duyệt chỉ giữ session token trong bộ nhớ tab, không ghi vào localStorage/sessionStorage. Nếu nghi ngờ token quản trị gốc bị lộ, hãy thay secret ngay.
 
-Bảng `admin_sessions` đã có trong `schema.sql`; khi triển khai database mới, chỉ cần chạy schema theo hướng dẫn. Nếu đã tạo database trước đó, áp dụng migration mới:
-`npx wrangler d1 execute customer-store-db --remote --file=./migrations/0002_admin_sessions.sql`.
+Database mới chạy `schema.sql`. Database cũ cần áp dụng migration còn thiếu theo thứ tự: `0002_admin_sessions.sql`, `0003_admin_audit_log.sql`, `0004_payment_delivery.sql`, `0005_private_deliveries.sql`, `0006_admin_login_attempts.sql`. Chỉ chạy migration chưa áp dụng; không chạy lặp lại migration có `ALTER TABLE`.
 
 Các endpoint:
 - `GET /api/products`: danh sách sản phẩm đang hiển thị.
 - `POST /api/orders`: tạo đơn hàng.
 - `GET /api/admin/orders`: xem đơn hàng (admin).
-- `POST /api/admin/login`: đổi token quản trị thành phiên đăng nhập ngắn hạn.\n- `POST /api/admin/logout`: thu hồi phiên hiện tại.\n- `GET /api/admin/products`: xem tất cả sản phẩm kể cả sản phẩm đang ẩn (admin).
+- `POST /api/admin/login`: đổi token quản trị thành phiên đăng nhập ngắn hạn.
+- `POST /api/admin/logout`: thu hồi phiên hiện tại.
+- `GET /api/admin/products`: xem tất cả sản phẩm kể cả sản phẩm đang ẩn (admin).
 - `POST /api/admin/products`: tạo sản phẩm (admin).
 - `PATCH /api/admin/products/:id`: bật/tắt hiển thị sản phẩm (admin).
-- `PATCH /api/admin/orders/:id`: cập nhật trạng thái đơn (admin).\n- `GET /api/admin/audit-log`: xem 100 hoạt động quản trị gần nhất (admin).
+- `PATCH /api/admin/orders/:id`: cập nhật trạng thái đơn (admin).
+- `GET /api/admin/audit-log`: xem 100 hoạt động quản trị gần nhất (admin).
 
 ## Nhật ký quản trị và sao lưu
 
 Dashboard quản trị hiển thị tối đa 100 hoạt động gần nhất. Backend ghi nhận lúc tạo sản phẩm, bật/tắt hiển thị sản phẩm và đổi trạng thái đơn hàng. Nhật ký chỉ đọc qua phiên quản trị hợp lệ; không có API công khai để sửa hoặc xóa nhật ký. Nội dung nhật ký tránh lưu email, số điện thoại hoặc ghi chú của người mua.
 
-Database mới đã có bảng `admin_audit_log` trong `schema.sql`. Nếu database đã tồn tại, áp dụng migration:
-`npx wrangler d1 execute customer-store-db --remote --file=./migrations/0003_admin_audit_log.sql`.
+Bảng `admin_audit_log` và `admin_login_attempts` đã có trong `schema.sql`; database cũ phải áp dụng migration tương ứng `0003_admin_audit_log.sql` và `0006_admin_login_attempts.sql` theo đúng thứ tự.
 
 ### Sao lưu D1
 
@@ -90,7 +92,16 @@ Tạo file JSON cấu hình (ví dụ `store.json`) trước khi đóng gói:
 }
 ```
 Chạy lệnh có `--config ./store.json`. Tên cửa hàng, câu giới thiệu, màu chủ đạo và tối đa 30 sản phẩm mẫu hợp lệ sẽ được đưa vào ZIP. Sản phẩm mẫu được ghi vào `seed-products.sql`; sau khi tạo D1, khách phải chạy file SQL này một lần để nhập sản phẩm. Ảnh chỉ nhận đường dẫn HTTPS. Công cụ không tự tải ảnh hoặc xác minh quyền sử dụng ảnh. Dữ liệu cấu hình cần được kiểm tra trước khi đóng gói và không nên chứa thông tin cá nhân nhạy cảm.
-\n\n## Thanh toán và bàn giao đơn hàng\n\nTrang quản trị tách riêng trạng thái thanh toán (chưa thanh toán / đã thanh toán / đã hoàn tiền) và bàn giao (chưa bàn giao / đã bàn giao). Backend từ chối đánh dấu đã bàn giao nếu đơn chưa được xác nhận đã thanh toán. Việc xác nhận tiền vẫn phải dựa trên giao dịch thực tế.\n\nDatabase mới có hai cột payment_status và delivery_status trong schema.sql. Với database đã tạo trước đó, áp dụng migration 0004_payment_delivery.sql trước khi triển khai backend mới.\n\nLưu ý: quản trị viên vẫn phải xác nhận giao dịch thực tế và thao tác thủ công trên dashboard. Sau khi upload file riêng tư lên R2, trạng thái bàn giao chỉ được lưu nếu đơn đã thanh toán và có file; link tải một lần sẽ được cấp từ dashboard sau khi cả hai trạng thái hợp lệ.\n
+
+
+## Thanh toán và bàn giao đơn hàng
+
+Trang quản trị tách riêng trạng thái thanh toán (chưa thanh toán / đã thanh toán / đã hoàn tiền) và bàn giao (chưa bàn giao / đã bàn giao). Backend từ chối đánh dấu đã bàn giao nếu đơn chưa được xác nhận đã thanh toán. Việc xác nhận tiền vẫn phải dựa trên giao dịch thực tế.
+
+Database mới có hai cột payment_status và delivery_status trong schema.sql. Với database đã tạo trước đó, áp dụng migration 0004_payment_delivery.sql trước khi triển khai backend mới.
+
+Lưu ý: quản trị viên vẫn phải xác nhận giao dịch thực tế và thao tác thủ công trên dashboard. Sau khi upload file riêng tư lên R2, trạng thái bàn giao chỉ được lưu nếu đơn đã thanh toán và có file; link tải một lần sẽ được cấp từ dashboard sau khi cả hai trạng thái hợp lệ.
+
  
 ## File bàn giao riêng tư (R2)
 Tạo bucket riêng: `npx wrangler r2 bucket create customer-store-private-deliveries`. Worker dùng binding `DELIVERIES` trong wrangler.toml; bucket không bật public access. Database mới chạy toàn bộ `schema.sql`. Database cũ cần lần lượt áp dụng các migration còn thiếu theo thứ tự 0002, 0003, 0004, 0005; không chạy lại migration đã áp dụng.
@@ -99,9 +110,12 @@ Quản trị viên gửi file dạng multipart/form-data với field `file` đ�
 
 Các route này yêu cầu session quản trị hợp lệ. Không gửi file qua public R2 URL. Nếu upload thay file cũ, object cũ cần được dọn định kỳ; không xóa thủ công bucket đang dùng. Dashboard quản trị đã có nút chọn file, upload file riêng tư và tạo link tải. Link chỉ hiển thị một lần khi được tạo; hãy sao chép và gửi cho khách ngay lúc đó.
 
-## Sao lưu dữ liệu\nDùng lệnh D1 export để xuất bản sao database trước khi chạy migration.
+## Sao lưu dữ liệu
+Dùng lệnh D1 export để xuất bản sao database trước khi chạy migration.
 Trước khi chạy migration hoặc cập nhật Worker, nên xuất bản sao D1:
 `npx wrangler d1 export customer-store-db --remote --output=./backup-customer-store.sql`.
 Giữ file backup ở nơi riêng tư; không đưa dữ liệu khách hàng vào ZIP phát hành hoặc commit lên GitHub.
 
-\n### Kiểm tra file bàn giao\nBackend xác minh chữ ký nội dung cơ bản của PDF, PNG, JPEG và ZIP/DOCX thay vì tin MIME do trình duyệt gửi lên. SVG bị loại khỏi danh sách upload để tránh nội dung SVG chủ động. Khi thay file, token tải cũ của đơn bị vô hiệu hóa; object R2 cũ được xóa sau khi bản ghi mới lưu thành công.
+
+### Kiểm tra file bàn giao
+Backend xác minh chữ ký nội dung cơ bản của PDF, PNG, JPEG và ZIP/DOCX thay vì tin MIME do trình duyệt gửi lên. SVG bị loại khỏi danh sách upload để tránh nội dung SVG chủ động. Khi thay file, token tải cũ của đơn bị vô hiệu hóa; object R2 cũ được xóa sau khi bản ghi mới lưu thành công.
